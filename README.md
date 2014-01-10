@@ -1,4 +1,4 @@
-2cgo2
-=====
+rp2cgo2
+=======
 
-A 2C02 simulator written in Go
+A RP 2C02 simulator written in Go
