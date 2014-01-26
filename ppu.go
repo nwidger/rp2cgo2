@@ -84,7 +84,7 @@ func (ppu *RP2C02) Reset() {
 
 func (ppu *RP2C02) controller(flag ControllerFlag) (value uint16) {
 	byte := ppu.Registers.Controller
-	bit := (byte >> flag) & 0x01
+	bit := byte & uint8(flag)
 
 	switch flag {
 	case BaseNametableAddress:
@@ -94,7 +94,7 @@ func (ppu *RP2C02) controller(flag ControllerFlag) (value uint16) {
 		switch bit {
 		case 0:
 			value = 1
-		case 1:
+		default:
 			value = 32
 		}
 	case SpritePatternAddress:
@@ -102,7 +102,7 @@ func (ppu *RP2C02) controller(flag ControllerFlag) (value uint16) {
 		switch bit {
 		case 0:
 			value = 0x0000
-		case 1:
+		default:
 			value = 0x1000
 		}
 	case BackgroundPatternAddress:
@@ -110,7 +110,7 @@ func (ppu *RP2C02) controller(flag ControllerFlag) (value uint16) {
 		switch bit {
 		case 0:
 			value = 0x0000
-		case 1:
+		default:
 			value = 0x1000
 		}
 
@@ -119,14 +119,14 @@ func (ppu *RP2C02) controller(flag ControllerFlag) (value uint16) {
 		switch bit {
 		case 0:
 			value = 8
-		case 1:
+		default:
 			value = 16
 		}
 	case NMIOnVBlank:
 		switch bit {
 		case 0:
 			value = 0
-		case 1:
+		default:
 			value = 1
 		}
 	}
@@ -135,7 +135,7 @@ func (ppu *RP2C02) controller(flag ControllerFlag) (value uint16) {
 }
 
 func (ppu *RP2C02) mask(flag MaskFlag) (value bool) {
-	if (ppu.Registers.Mask>>flag)&0x01 != 0 {
+	if ppu.Registers.Mask&uint8(flag) != 0 {
 		value = true
 	}
 
@@ -143,7 +143,7 @@ func (ppu *RP2C02) mask(flag MaskFlag) (value bool) {
 }
 
 func (ppu *RP2C02) status(flag StatusFlag) (value bool) {
-	if (ppu.Registers.Mask>>flag)&0x01 != 0 {
+	if ppu.Registers.Status&uint8(flag) != 0 {
 		value = true
 	}
 
@@ -188,9 +188,9 @@ func (ppu *RP2C02) Fetch(address uint16) (value uint8) {
 		// Status
 		case 0x0002:
 			value = ppu.Registers.Status
+
 			ppu.Registers.Status &^= uint8(VBlankStarted)
 			ppu.latch = false
-			ppu.latchAddress = 0x0000
 		// OAMData
 		case 0x0004:
 			value = ppu.Registers.OAMData
