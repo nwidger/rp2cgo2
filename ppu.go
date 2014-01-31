@@ -117,6 +117,10 @@ func NewRP2C02(clock m65go2.Clocker, divisor uint64, mirroring Mirroring) *RP2C0
 	}
 
 	// Mirrored palette
+	for _, i := range []uint16{0x3f10, 0x3f14, 0x3f18, 0x3f1c} {
+		mirrors[i] = i - 0x0010
+	}
+
 	for i := uint16(0x3f20); i <= 0x3fff; i++ {
 		mirrors[i] = i - 0x0020
 	}

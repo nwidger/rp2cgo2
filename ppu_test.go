@@ -314,3 +314,40 @@ func TestHorizontalMirroring(t *testing.T) {
 		}
 	}
 }
+
+func TestPaletteMirroring(t *testing.T) {
+	divisor := uint64(4)
+	clock := m65go2.NewClock(1 * time.Nanosecond)
+	ppu := NewRP2C02(clock, divisor, Horizontal)
+
+	// Mirrored palette
+	for _, i := range []uint16{0x3f10, 0x3f14, 0x3f18, 0x3f1c} {
+		ppu.Memory.Store(i-0x0010, 0xff)
+
+		if ppu.Memory.Fetch(i) != 0xff {
+			t.Error("Memory is not 0xff")
+		}
+
+		ppu.Memory.Store(i-0x0010, 0x00)
+		ppu.Memory.Store(i, 0xff)
+
+		if ppu.Memory.Fetch(i-0x0010) != 0xff {
+			t.Error("Memory is not 0xff")
+		}
+	}
+
+	for i := uint16(0x3f20); i <= 0x3fff; i++ {
+		ppu.Memory.Store(i-0x0020, 0xff)
+
+		if ppu.Memory.Fetch(i) != 0xff {
+			t.Error("Memory is not 0xff")
+		}
+
+		ppu.Memory.Store(i-0x0020, 0x00)
+		ppu.Memory.Store(i, 0xff)
+
+		if ppu.Memory.Fetch(i-0x0020) != 0xff {
+			t.Error("Memory is not 0xff")
+		}
+	}
+}
