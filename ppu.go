@@ -2,6 +2,15 @@ package rp2cgo2
 
 import (
 	"github.com/nwidger/m65go2"
+	"github.com/nwidger/rp2ago3"
+)
+
+type Mirroring uint8
+
+const (
+	Horizontal Mirroring = iota
+	Vertical
+	FourScreen
 )
 
 type ControllerFlag uint8
@@ -70,11 +79,54 @@ type RP2C02 struct {
 	latch        bool
 	latchAddress uint16
 	Registers    Registers
+	Memory       *rp2ago3.MappedMemory
 }
 
-func NewRP2C02(clock m65go2.Clocker, divisor uint64) *RP2C02 {
+func NewRP2C02(clock m65go2.Clocker, divisor uint64, mirroring Mirroring) *RP2C02 {
 	divider := m65go2.NewDivider(clock, divisor)
-	return &RP2C02{clock: divider}
+
+	mem := rp2ago3.NewMappedMemory(m65go2.NewBasicMemory())
+	mirrors := make(map[uint16]uint16)
+
+	switch mirroring {
+	case Horizontal:
+		// Mirror nametable #1 to #0
+		for i := uint16(0x2400); i <= 0x27ff; i++ {
+			mirrors[i] = i - 0x0400
+		}
+
+		// Mirror nametable #3 to #2
+		for i := uint16(0x2c00); i <= 0x2fff; i++ {
+			mirrors[i] = i - 0x0400
+		}
+	case Vertical:
+		// Mirror nametable #2 to #0
+		for i := uint16(0x2800); i <= 0x2bff; i++ {
+			mirrors[i] = i - 0x0800
+		}
+
+		// Mirror nametable #3 to #1
+		for i := uint16(0x2c00); i <= 0x2fff; i++ {
+			mirrors[i] = i - 0x0800
+		}
+	}
+
+	// Mirrored nametables
+	for i := uint16(0x3000); i <= 0x3eff; i++ {
+		mirrors[i] = i - 0x1000
+	}
+
+	// Mirrored palette
+	for i := uint16(0x3f20); i <= 0x3fff; i++ {
+		mirrors[i] = i - 0x0020
+	}
+
+	mem.AddMirrors(mirrors)
+
+	return &RP2C02{
+		clock:  divider,
+		Memory: mem,
+	}
 }
 
 func (ppu *RP2C02) Reset() {
@@ -150,30 +202,33 @@ func (ppu *RP2C02) status(flag StatusFlag) (value bool) {
 	return
 }
 
-func (ppu *RP2C02) Mappings() (fetch, store []uint16) {
+func (ppu *RP2C02) Mappings(which rp2ago3.Mapping) (fetch, store []uint16) {
 	fetch = []uint16{}
 	store = []uint16{}
 
-	for i := uint16(0x2000); i <= 0x3fff; i++ {
-		switch i & 0x0007 {
-		case 0x0000:
-			store = append(store, i)
-		case 0x0001:
-			store = append(store, i)
-		case 0x0002:
-			fetch = append(fetch, i)
-		case 0x0003:
-			store = append(store, i)
-		case 0x0004:
-			fetch = append(fetch, i)
-			store = append(store, i)
-		case 0x0005:
-			store = append(store, i)
-		case 0x0006:
-			store = append(store, i)
-		case 0x0007:
-			fetch = append(fetch, i)
-			store = append(store, i)
+	switch which {
+	case rp2ago3.CPU:
+		for i := uint16(0x2000); i <= 0x2007; i++ {
+			switch i {
+			case 0x2000:
+				store = append(store, i)
+			case 0x2001:
+				store = append(store, i)
+			case 0x2002:
+				fetch = append(fetch, i)
+			case 0x2003:
+				store = append(store, i)
+			case 0x2004:
+				fetch = append(fetch, i)
+				store = append(store, i)
+			case 0x2005:
+				store = append(store, i)
+			case 0x2006:
+				store = append(store, i)
+			case 0x2007:
+				fetch = append(fetch, i)
+				store = append(store, i)
+			}
 		}
 	}
 
@@ -181,87 +236,78 @@ func (ppu *RP2C02) Mappings() (fetch, store []uint16) {
 }
 
 func (ppu *RP2C02) Fetch(address uint16) (value uint8) {
-	switch {
-	case address >= 0x2000 && address <= 0x3fff:
-		index := address & 0x0007
-		switch index {
-		// Status
-		case 0x0002:
-			value = ppu.Registers.Status
+	switch address {
+	// Status
+	case 0x2002:
+		value = ppu.Registers.Status
 
-			ppu.Registers.Status &^= uint8(VBlankStarted)
-			ppu.latch = false
-		// OAMData
-		case 0x0004:
-			value = ppu.Registers.OAMData
-		// Data
-		case 0x0007:
-			value = ppu.Registers.Data
-		}
+		ppu.Registers.Status &^= uint8(VBlankStarted)
+		ppu.latch = false
+	// OAMData
+	case 0x2004:
+		value = ppu.Registers.OAMData
+	// Data
+	case 0x2007:
+		value = ppu.Registers.Data
 	}
 
 	return
 }
 
 func (ppu *RP2C02) Store(address uint16, value uint8) (oldValue uint8) {
-	switch {
-	case address >= 0x2000 && address <= 0x3fff:
-		index := address & 0x0007
+	switch address {
+	// Controller
+	case 0x2000:
+		oldValue = ppu.Registers.Controller
+		ppu.Registers.Controller = value
+		ppu.latchAddress = (ppu.latchAddress & 0x73ff) | uint16(ppu.controller(BaseNametableAddress))<<10
+	// Mask
+	case 0x2001:
+		oldValue = ppu.Registers.Mask
+		ppu.Registers.Mask = value
+	// OAMAddress
+	case 0x2003:
+		oldValue = ppu.Registers.OAMAddress
+		ppu.Registers.OAMAddress = value
+	// OAMData
+	case 0x2004:
+		oldValue = ppu.Registers.OAMData
+		ppu.Registers.OAMData = value
+	// Scroll
+	case 0x2005:
+		if !ppu.latch {
+			// Horizontal scroll offset
+			// 0x7fe0 == 0111 1111 1110 0000b
 
-		switch index {
-		// Controller
-		case 0x0000:
-			oldValue = ppu.Registers.Controller
-			ppu.Registers.Controller = value
-			ppu.latchAddress = (ppu.latchAddress & 0x73ff) | uint16(ppu.controller(BaseNametableAddress))<<10
-		// Mask
-		case 0x0001:
-			oldValue = ppu.Registers.Mask
-			ppu.Registers.Mask = value
-		// OAMAddress
-		case 0x0003:
-			oldValue = ppu.Registers.OAMAddress
-			ppu.Registers.OAMAddress = value
-		// OAMData
-		case 0x0004:
-			oldValue = ppu.Registers.OAMData
-			ppu.Registers.OAMData = value
-		// Scroll
-		case 0x0005:
-			if !ppu.latch {
-				// Horizontal scroll offset
-				// 0x7fe0 == 0111 1111 1110 0000b
-
-				// copy upper 5 bits of value into latchAddress
-				// copy lower 3 bits of value into Scroll
-				ppu.latchAddress = (ppu.latchAddress & 0x7fe0) | uint16(value>>3)
-				ppu.Registers.Scroll = uint16(value & 0x07)
-			} else {
-				// Vertical scroll offset
-				// 0x0c1f == 0000 1100 0001 1111b
-				// 0x73e0 == 0111 0011 1110 0000b
-				ppu.latchAddress = (ppu.latchAddress & 0x0c1f) | ((uint16(value)<<2 | uint16(value)<<12) & 0x73e0)
-			}
-
-			ppu.latch = !ppu.latch
-		// Address
-		case 0x0006:
-			if !ppu.latch {
-				ppu.latchAddress = (ppu.latchAddress & 0x00ff) | uint16(value&0x3f)<<8
-			} else {
-				ppu.latchAddress = (ppu.latchAddress & 0x7f00) | uint16(value)
-				ppu.Registers.Address = ppu.latchAddress
-			}
-
-			ppu.latch = !ppu.latch
-		// Data
-		case 0x0007:
-			oldValue = ppu.Registers.Data
-			ppu.Registers.Data = value
-
-			ppu.Registers.Address += ppu.controller(VRAMAddressIncrement)
-
+			// copy upper 5 bits of value into latchAddress
+			// copy lower 3 bits of value into Scroll
+			ppu.latchAddress = (ppu.latchAddress & 0x7fe0) | uint16(value>>3)
+			ppu.Registers.Scroll = uint16(value & 0x07)
+		} else {
+			// Vertical scroll offset
+			// 0x0c1f == 0000 1100 0001 1111b
+			// 0x73e0 == 0111 0011 1110 0000b
+			ppu.latchAddress = (ppu.latchAddress & 0x0c1f) | ((uint16(value)<<2 | uint16(value)<<12) & 0x73e0)
 		}
+
+		ppu.latch = !ppu.latch
+	// Address
+	case 0x2006:
+		if !ppu.latch {
+			ppu.latchAddress = (ppu.latchAddress & 0x00ff) | uint16(value&0x3f)<<8
+		} else {
+			ppu.latchAddress = (ppu.latchAddress & 0x7f00) | uint16(value)
+			ppu.Registers.Address = ppu.latchAddress
+		}
+
+		ppu.latch = !ppu.latch
+	// Data
+	case 0x2007:
+		oldValue = ppu.Registers.Data
+		ppu.Registers.Data = value
+
+		ppu.Registers.Address += ppu.controller(VRAMAddressIncrement)
+
 	}
 
 	return

@@ -9,18 +9,13 @@ import (
 func TestController(t *testing.T) {
 	divisor := uint64(4)
 	clock := m65go2.NewClock(1 * time.Nanosecond)
-	ppu := NewRP2C02(clock, divisor)
+	ppu := NewRP2C02(clock, divisor, Vertical)
 
-	for i := uint16(0x2000); i <= 0x3fff; i += 0x0008 {
-		ppu.Registers.Controller = 0x00
+	ppu.Registers.Controller = 0x00
+	ppu.Store(0x2000, 0xff)
 
-		value := uint8(i % 0xff)
-
-		ppu.Store(i, value)
-
-		if ppu.Registers.Controller != value {
-			t.Errorf("Register is %02X not %02X\n", ppu.Registers.Controller, value)
-		}
+	if ppu.Registers.Controller != 0xff {
+		t.Errorf("Register is %02X not 0xff\n", ppu.Registers.Controller)
 	}
 
 	// BaseNametableAddress
@@ -117,18 +112,14 @@ func TestController(t *testing.T) {
 func TestMask(t *testing.T) {
 	divisor := uint64(4)
 	clock := m65go2.NewClock(1 * time.Nanosecond)
-	ppu := NewRP2C02(clock, divisor)
+	ppu := NewRP2C02(clock, divisor, Vertical)
 
-	for i := uint16(0x2001); i <= 0x3fff; i += 0x0008 {
-		ppu.Registers.Mask = 0x00
+	ppu.Registers.Mask = 0x00
+	value := uint8(0xff)
+	ppu.Store(0x2001, value)
 
-		value := uint8(i % 0xff)
-
-		ppu.Store(i, value)
-
-		if ppu.Registers.Mask != value {
-			t.Errorf("Register is %02X not %02X\n", ppu.Registers.Mask, value)
-		}
+	if ppu.Registers.Mask != value {
+		t.Errorf("Register is %02X not %02X\n", ppu.Registers.Mask, value)
 	}
 
 	for _, m := range []MaskFlag{
@@ -146,16 +137,14 @@ func TestMask(t *testing.T) {
 func TestStatus(t *testing.T) {
 	divisor := uint64(4)
 	clock := m65go2.NewClock(1 * time.Nanosecond)
-	ppu := NewRP2C02(clock, divisor)
+	ppu := NewRP2C02(clock, divisor, Vertical)
 
-	for i := uint16(0x2002); i <= 0x3fff; i += 0x0008 {
-		ppu.Registers.Status = 0x00
-		value := uint8(i % 0xff)
-		ppu.Registers.Status = value
+	ppu.Registers.Status = 0x00
+	value := uint8(0xff)
+	ppu.Registers.Status = value
 
-		if ppu.Fetch(i) != value {
-			t.Errorf("Memory is %02X not %02X\n", ppu.Fetch(i), value)
-		}
+	if ppu.Fetch(0x2002) != value {
+		t.Errorf("Memory is %02X not %02X\n", ppu.Fetch(0x2002), value)
 	}
 
 	ppu.Registers.Status = 0xff
@@ -182,6 +171,146 @@ func TestStatus(t *testing.T) {
 
 		if !ppu.status(s) {
 			t.Errorf("Status %v is not true", s)
+		}
+	}
+}
+
+func TestVerticalMirroring(t *testing.T) {
+	divisor := uint64(4)
+	clock := m65go2.NewClock(1 * time.Nanosecond)
+	ppu := NewRP2C02(clock, divisor, Vertical)
+
+	// Mirror nametable #2 to #0
+	for i := uint16(0x2800); i <= 0x2bff; i++ {
+		ppu.Memory.Store(i-0x0800, 0xff)
+
+		if ppu.Memory.Fetch(i) != 0xff {
+			t.Error("Memory is not 0xff")
+		}
+
+		ppu.Memory.Store(i-0x0800, 0x00)
+		ppu.Memory.Store(i, 0xff)
+
+		if ppu.Memory.Fetch(i-0x0800) != 0xff {
+			t.Error("Memory is not 0xff")
+		}
+	}
+
+	// Mirror nametable #3 to #1
+	for i := uint16(0x2c00); i <= 0x2fff; i++ {
+		ppu.Memory.Store(i-0x0800, 0xff)
+
+		if ppu.Memory.Fetch(i) != 0xff {
+			t.Error("Memory is not 0xff")
+		}
+
+		ppu.Memory.Store(i-0x0800, 0x00)
+		ppu.Memory.Store(i, 0xff)
+
+		if ppu.Memory.Fetch(i-0x0800) != 0xff {
+			t.Error("Memory is not 0xff")
+		}
+	}
+
+	// Mirror nametable #2 to #0
+	for i := uint16(0x3000); i <= 0x33ff; i++ {
+		ppu.Memory.Store(i-0x1000, 0xff)
+
+		if ppu.Memory.Fetch(i) != 0xff {
+			t.Error("Memory is not 0xff")
+		}
+
+		ppu.Memory.Store(i-0x1000, 0x00)
+		ppu.Memory.Store(i, 0xff)
+
+		if ppu.Memory.Fetch(i-0x1000) != 0xff {
+			t.Error("Memory is not 0xff")
+		}
+	}
+
+	// Mirror nametable #3 to #1
+	for i := uint16(0x3400); i <= 0x37ff; i++ {
+		ppu.Memory.Store(i-0x1000, 0xff)
+
+		if ppu.Memory.Fetch(i) != 0xff {
+			t.Error("Memory is not 0xff")
+		}
+
+		ppu.Memory.Store(i-0x1000, 0x00)
+		ppu.Memory.Store(i, 0xff)
+
+		if ppu.Memory.Fetch(i-0x1000) != 0xff {
+			t.Error("Memory is not 0xff")
+		}
+	}
+}
+
+func TestHorizontalMirroring(t *testing.T) {
+	divisor := uint64(4)
+	clock := m65go2.NewClock(1 * time.Nanosecond)
+	ppu := NewRP2C02(clock, divisor, Horizontal)
+
+	// Mirror nametable #1 to #0
+	for i := uint16(0x2400); i <= 0x27ff; i++ {
+		ppu.Memory.Store(i-0x0400, 0xff)
+
+		if ppu.Memory.Fetch(i) != 0xff {
+			t.Error("Memory is not 0xff")
+		}
+
+		ppu.Memory.Store(i-0x0400, 0x00)
+		ppu.Memory.Store(i, 0xff)
+
+		if ppu.Memory.Fetch(i-0x0400) != 0xff {
+			t.Error("Memory is not 0xff")
+		}
+	}
+
+	// Mirror nametable #3 to #2
+	for i := uint16(0x2c00); i <= 0x2fff; i++ {
+		ppu.Memory.Store(i-0x0400, 0xff)
+
+		if ppu.Memory.Fetch(i) != 0xff {
+			t.Error("Memory is not 0xff")
+		}
+
+		ppu.Memory.Store(i-0x0400, 0x00)
+		ppu.Memory.Store(i, 0xff)
+
+		if ppu.Memory.Fetch(i-0x0400) != 0xff {
+			t.Error("Memory is not 0xff")
+		}
+	}
+
+	// Mirror nametable #1 to #0
+	for i := uint16(0x3400); i <= 0x37ff; i++ {
+		ppu.Memory.Store(i-0x1400, 0xff)
+
+		if ppu.Memory.Fetch(i) != 0xff {
+			t.Error("Memory is not 0xff")
+		}
+
+		ppu.Memory.Store(i-0x1400, 0x00)
+		ppu.Memory.Store(i, 0xff)
+
+		if ppu.Memory.Fetch(i-0x1400) != 0xff {
+			t.Error("Memory is not 0xff")
+		}
+	}
+
+	// Mirror nametable #3 to #2
+	for i := uint16(0x3c00); i <= 0x3eff; i++ {
+		ppu.Memory.Store(i-0x1400, 0xff)
+
+		if ppu.Memory.Fetch(i) != 0xff {
+			t.Error("Memory is not 0xff")
+		}
+
+		ppu.Memory.Store(i-0x1400, 0x00)
+		ppu.Memory.Store(i, 0xff)
+
+		if ppu.Memory.Fetch(i-0x1400) != 0xff {
+			t.Error("Memory is not 0xff")
 		}
 	}
 }
