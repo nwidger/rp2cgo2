@@ -136,6 +136,7 @@ func NewRP2C02(clock m65go2.Clocker, divisor uint64, mirroring Mirroring) *RP2C0
 func (ppu *RP2C02) Reset() {
 	ppu.latch = false
 	ppu.Registers.Reset()
+	ppu.Memory.Reset()
 }
 
 func (ppu *RP2C02) controller(flag ControllerFlag) (value uint16) {
@@ -253,6 +254,15 @@ func (ppu *RP2C02) Fetch(address uint16) (value uint8) {
 	// Data
 	case 0x2007:
 		value = ppu.Registers.Data
+
+		vramAddress := ppu.Registers.Address & 0x3fff
+		ppu.Registers.Data = ppu.Memory.Fetch(vramAddress)
+
+		if vramAddress >= 0x3f00 {
+			value = ppu.Registers.Data
+		}
+
+		ppu.Registers.Address += ppu.controller(VRAMAddressIncrement)
 	}
 
 	return
@@ -308,10 +318,8 @@ func (ppu *RP2C02) Store(address uint16, value uint8) (oldValue uint8) {
 	// Data
 	case 0x2007:
 		oldValue = ppu.Registers.Data
-		ppu.Registers.Data = value
-
+		ppu.Memory.Store(ppu.Registers.Address&0x3fff, value)
 		ppu.Registers.Address += ppu.controller(VRAMAddressIncrement)
-
 	}
 
 	return

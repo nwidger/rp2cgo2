@@ -351,3 +351,131 @@ func TestPaletteMirroring(t *testing.T) {
 		}
 	}
 }
+
+func TestAddress(t *testing.T) {
+	divisor := uint64(4)
+	clock := m65go2.NewClock(1 * time.Nanosecond)
+	ppu := NewRP2C02(clock, divisor, Horizontal)
+
+	ppu.Registers.Address = 0x0000
+	ppu.Fetch(0x2002)
+
+	ppu.Store(0x2006, 0x3f)
+	ppu.Store(0x2006, 0xff)
+
+	if ppu.Registers.Address != 0x3fff {
+		t.Error("Register is not 0x3fff")
+	}
+
+	ppu.Fetch(0x2002)
+
+	ppu.Store(0x2006, 0x01)
+	ppu.Store(0x2006, 0x01)
+
+	if ppu.Registers.Address != 0x0101 {
+		t.Error("Register is not 0x0101")
+	}
+}
+
+func TestDataIncrement1(t *testing.T) {
+	divisor := uint64(4)
+	clock := m65go2.NewClock(1 * time.Nanosecond)
+	ppu := NewRP2C02(clock, divisor, Horizontal)
+
+	ppu.Registers.Address = 0x0000
+	ppu.Fetch(0x2002)
+
+	ppu.Store(0x2006, 0x01)
+	ppu.Store(0x2006, 0x00)
+
+	if ppu.Registers.Address != 0x0100 {
+		t.Error("Register is not 0x0100")
+	}
+
+	ppu.Store(0x2007, 0xff)
+	ppu.Store(0x2007, 0xff)
+	ppu.Store(0x2007, 0xff)
+
+	if ppu.Memory.Fetch(0x0100) != 0xff {
+		t.Error("Memory is not 0xff")
+	}
+
+	if ppu.Memory.Fetch(0x0101) != 0xff {
+		t.Error("Memory is not 0xff")
+	}
+
+	if ppu.Memory.Fetch(0x0102) != 0xff {
+		t.Error("Memory is not 0xff")
+	}
+
+	if ppu.Registers.Address != 0x0103 {
+		t.Error("Register is not 0x0103")
+	}
+
+	ppu.Memory.Store(0x0103, 0xff)
+	ppu.Fetch(0x2007)
+
+	if ppu.Fetch(0x2007) != 0xff {
+		t.Error("Memory is not 0xff")
+	}
+
+	if ppu.Registers.Address != 0x0105 {
+		t.Error("Register is not 0x0105")
+	}
+
+	ppu.Registers.Address = 0x0000
+	ppu.Fetch(0x2002)
+
+	ppu.Store(0x2006, 0x3f)
+	ppu.Store(0x2006, 0x00)
+
+	if ppu.Registers.Address != 0x3f00 {
+		t.Error("Register is not 0x3f00")
+	}
+
+	ppu.Memory.Store(0x3f00, 0xff)
+	ppu.Memory.Store(0x3f01, 0xff)
+	ppu.Memory.Store(0x3f02, 0xff)
+
+	if ppu.Fetch(0x2007) != 0xff {
+		t.Error("Memory is not 0xff")
+	}
+
+	if ppu.Registers.Address != 0x3f01 {
+		t.Error("Register is not 0x3f01")
+	}
+}
+
+func TestDataIncrement32(t *testing.T) {
+	divisor := uint64(4)
+	clock := m65go2.NewClock(1 * time.Nanosecond)
+	ppu := NewRP2C02(clock, divisor, Horizontal)
+
+	ppu.Store(0x2000, 0x04)
+
+	ppu.Registers.Address = 0x0000
+	ppu.Fetch(0x2002)
+
+	ppu.Store(0x2006, 0x01)
+	ppu.Store(0x2006, 0x00)
+
+	if ppu.Registers.Address != 0x0100 {
+		t.Error("Register is not 0x0100")
+	}
+
+	ppu.Store(0x2007, 0xff)
+	ppu.Store(0x2007, 0xff)
+	ppu.Store(0x2007, 0xff)
+
+	if ppu.Memory.Fetch(0x0100) != 0xff {
+		t.Error("Memory is not 0xff")
+	}
+
+	if ppu.Memory.Fetch(0x0120) != 0xff {
+		t.Error("Memory is not 0xff")
+	}
+
+	if ppu.Memory.Fetch(0x0140) != 0xff {
+		t.Error("Memory is not 0xff")
+	}
+}
