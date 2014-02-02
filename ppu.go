@@ -287,6 +287,7 @@ func (ppu *RP2C02) Store(address uint16, value uint8) (oldValue uint8) {
 	switch address {
 	// Controller
 	case 0x2000:
+		// t: ...BA.. ........ = d: ......BA
 		oldValue = ppu.Registers.Controller
 		ppu.Registers.Controller = value
 		ppu.latchAddress = (ppu.latchAddress & 0x73ff) | uint16(ppu.controller(BaseNametableAddress))<<10
@@ -305,17 +306,12 @@ func (ppu *RP2C02) Store(address uint16, value uint8) (oldValue uint8) {
 	// Scroll
 	case 0x2005:
 		if !ppu.latch {
-			// Horizontal scroll offset
-			// 0x7fe0 == 0111 1111 1110 0000b
-
-			// copy upper 5 bits of value into latchAddress
-			// copy lower 3 bits of value into Scroll
+			// t: ....... ...HGFED = d: HGFED...
+			// x:              CBA = d: .....CBA
 			ppu.latchAddress = (ppu.latchAddress & 0x7fe0) | uint16(value>>3)
 			ppu.Registers.Scroll = uint16(value & 0x07)
 		} else {
-			// Vertical scroll offset
-			// 0x0c1f == 0000 1100 0001 1111b
-			// 0x73e0 == 0111 0011 1110 0000b
+			// t: CBA..HG FED..... = d: HGFEDCBA
 			ppu.latchAddress = (ppu.latchAddress & 0x0c1f) | ((uint16(value)<<2 | uint16(value)<<12) & 0x73e0)
 		}
 
@@ -323,8 +319,12 @@ func (ppu *RP2C02) Store(address uint16, value uint8) (oldValue uint8) {
 	// Address
 	case 0x2006:
 		if !ppu.latch {
+			// t: .FEDCBA ........ = d: ..FEDCBA
+			// t: X...... ........ = 0
 			ppu.latchAddress = (ppu.latchAddress & 0x00ff) | uint16(value&0x3f)<<8
 		} else {
+			// t: ....... HGFEDCBA = d: HGFEDCBA
+			// v                   = t
 			ppu.latchAddress = (ppu.latchAddress & 0x7f00) | uint16(value)
 			ppu.Registers.Address = ppu.latchAddress
 		}
@@ -338,6 +338,50 @@ func (ppu *RP2C02) Store(address uint16, value uint8) (oldValue uint8) {
 	}
 
 	return
+}
+
+func (ppu *RP2C02) incrementCoarseX() {
+	// v: .yyy NN YYYYY XXXXX
+	//     ||| || ||||| +++++-- coarse X scroll
+	//     ||| || +++++-------- coarse Y scroll
+	//     ||| ++-------------- nametable select
+	//     +++----------------- fine Y scroll
+	v := ppu.Registers.Address
+
+	switch v & 0x001f {
+	case 0x001f: // coarse X == 31
+		v ^= 0x041f // coarse X = 0, switch horizontal nametable
+	default:
+		v++ // increment coarse X
+	}
+
+	ppu.Registers.Address = v
+}
+
+func (ppu *RP2C02) incrementY() {
+	// v: .yyy NN YYYYY XXXXX
+	//     ||| || ||||| +++++-- coarse X scroll
+	//     ||| || +++++-------- coarse Y scroll
+	//     ||| ++-------------- nametable select
+	//     +++----------------- fine Y scroll
+	v := ppu.Registers.Address
+
+	if (v & 0x7000) != 0x7000 { // if fine Y < 7
+		v += 0x1000 // increment fine Y
+	} else {
+		v &= 0x0fff // fine Y = 0
+
+		switch v & 0x03e0 {
+		case 0x3a0: // coarse Y = 29
+			v ^= 0x0800 // switch vertical nametable
+		case 0x3e0: // coarse Y = 31
+			v &= 0x7c1f // coarse Y = 0, nametable not switched
+		default:
+			v += 0x0020 // increment coarse Y
+		}
+	}
+
+	ppu.Registers.Address = v
 }
 
 func (ppu *RP2C02) renderScanline() (cycles uint64) {
