@@ -1,6 +1,7 @@
 package rp2cgo2
 
 import (
+	"fmt"
 	"github.com/nwidger/m65go2"
 	"github.com/nwidger/rp2ago3"
 )
@@ -74,15 +75,24 @@ func (reg *Registers) Reset() {
 	reg.Data = 0x00
 }
 
+const (
+	CYCLES_PER_SCANLINE uint64 = 341
+	NUM_SCANLINES              = 262
+	POWERUP_SCANLINE    uint16 = 241
+)
+
 type RP2C02 struct {
 	clock        *m65go2.Divider
 	latch        bool
 	latchAddress uint16
 	Registers    Registers
 	Memory       *rp2ago3.MappedMemory
+	Interrupt    func(state bool)
+	scanline     uint16
+	cycle        uint64
 }
 
-func NewRP2C02(clock m65go2.Clocker, divisor uint64, mirroring Mirroring) *RP2C02 {
+func NewRP2C02(clock m65go2.Clocker, divisor uint64, interrupt func(bool), mirroring Mirroring) *RP2C02 {
 	divider := m65go2.NewDivider(clock, divisor)
 
 	mem := rp2ago3.NewMappedMemory(m65go2.NewBasicMemory())
@@ -128,9 +138,14 @@ func NewRP2C02(clock m65go2.Clocker, divisor uint64, mirroring Mirroring) *RP2C0
 	mem.AddMirrors(mirrors)
 
 	return &RP2C02{
-		clock:  divider,
-		Memory: mem,
+		clock:     divider,
+		Memory:    mem,
+		Interrupt: interrupt,
 	}
+}
+
+func (ppu *RP2C02) String() string {
+	return fmt.Sprintf("CYC:%3d SL:%3d", ppu.cycle, ppu.scanline)
 }
 
 func (ppu *RP2C02) Reset() {
@@ -320,6 +335,77 @@ func (ppu *RP2C02) Store(address uint16, value uint8) (oldValue uint8) {
 		oldValue = ppu.Registers.Data
 		ppu.Memory.Store(ppu.Registers.Address&0x3fff, value)
 		ppu.Registers.Address += ppu.controller(VRAMAddressIncrement)
+	}
+
+	return
+}
+
+func (ppu *RP2C02) renderScanline() (cycles uint64) {
+	ppu.cycle = 0
+	ticks := ppu.clock.Ticks()
+	cycles = CYCLES_PER_SCANLINE
+
+	switch {
+	// visible scanlines (0-239)
+	case ppu.scanline >= 0 && ppu.scanline <= 239:
+		// cycle 0
+
+		ppu.cycle = 1
+		ppu.clock.Await(ticks + ppu.cycle)
+
+		// cycles 1-256
+
+		ppu.cycle = 257
+		ppu.clock.Await(ticks + ppu.cycle)
+
+		// cycles 257-320
+
+		ppu.cycle = 231
+		ppu.clock.Await(ticks + ppu.cycle)
+
+		// cycles 321-336
+
+		ppu.cycle = 337
+		ppu.clock.Await(ticks + ppu.cycle)
+
+		// cycles 337-340
+
+		ppu.cycle = 341
+		ppu.clock.Await(ticks + ppu.cycle)
+	// post-render ppu.scanline
+	case ppu.scanline == 240:
+
+	// vertical blanking scanlines
+	case ppu.scanline == 241:
+		ppu.cycle = 1
+		ppu.clock.Await(ticks + ppu.cycle)
+
+		ppu.Registers.Status |= uint8(VBlankStarted)
+
+		if ppu.Interrupt != nil {
+			ppu.Interrupt(true)
+		}
+	case ppu.scanline >= 242 && ppu.scanline <= 260:
+
+	// pre-render ppu.scanline
+	case ppu.scanline == 261:
+		ppu.cycle = 1
+		ppu.clock.Await(ticks + ppu.cycle)
+		ppu.Registers.Status &^= uint8(VBlankStarted | Sprite0Hit | SpriteOverflow)
+	}
+
+	cycles -= ppu.cycle
+
+	return
+}
+
+func (ppu *RP2C02) Run() (err error) {
+	ppu.scanline = POWERUP_SCANLINE
+
+	for {
+		ticks := ppu.clock.Ticks()
+		ppu.clock.Await(ticks + ppu.renderScanline())
+		ppu.scanline = (ppu.scanline + 1) % NUM_SCANLINES
 	}
 
 	return

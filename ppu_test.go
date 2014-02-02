@@ -9,7 +9,7 @@ import (
 func TestController(t *testing.T) {
 	divisor := uint64(4)
 	clock := m65go2.NewClock(1 * time.Nanosecond)
-	ppu := NewRP2C02(clock, divisor, Vertical)
+	ppu := NewRP2C02(clock, divisor, nil, Vertical)
 
 	ppu.Registers.Controller = 0x00
 	ppu.Store(0x2000, 0xff)
@@ -112,7 +112,7 @@ func TestController(t *testing.T) {
 func TestMask(t *testing.T) {
 	divisor := uint64(4)
 	clock := m65go2.NewClock(1 * time.Nanosecond)
-	ppu := NewRP2C02(clock, divisor, Vertical)
+	ppu := NewRP2C02(clock, divisor, nil, Vertical)
 
 	ppu.Registers.Mask = 0x00
 	value := uint8(0xff)
@@ -137,7 +137,7 @@ func TestMask(t *testing.T) {
 func TestStatus(t *testing.T) {
 	divisor := uint64(4)
 	clock := m65go2.NewClock(1 * time.Nanosecond)
-	ppu := NewRP2C02(clock, divisor, Vertical)
+	ppu := NewRP2C02(clock, divisor, nil, Vertical)
 
 	ppu.Registers.Status = 0x00
 	value := uint8(0xff)
@@ -178,7 +178,7 @@ func TestStatus(t *testing.T) {
 func TestVerticalMirroring(t *testing.T) {
 	divisor := uint64(4)
 	clock := m65go2.NewClock(1 * time.Nanosecond)
-	ppu := NewRP2C02(clock, divisor, Vertical)
+	ppu := NewRP2C02(clock, divisor, nil, Vertical)
 
 	// Mirror nametable #2 to #0
 	for i := uint16(0x2800); i <= 0x2bff; i++ {
@@ -248,7 +248,7 @@ func TestVerticalMirroring(t *testing.T) {
 func TestHorizontalMirroring(t *testing.T) {
 	divisor := uint64(4)
 	clock := m65go2.NewClock(1 * time.Nanosecond)
-	ppu := NewRP2C02(clock, divisor, Horizontal)
+	ppu := NewRP2C02(clock, divisor, nil, Horizontal)
 
 	// Mirror nametable #1 to #0
 	for i := uint16(0x2400); i <= 0x27ff; i++ {
@@ -318,7 +318,7 @@ func TestHorizontalMirroring(t *testing.T) {
 func TestPaletteMirroring(t *testing.T) {
 	divisor := uint64(4)
 	clock := m65go2.NewClock(1 * time.Nanosecond)
-	ppu := NewRP2C02(clock, divisor, Horizontal)
+	ppu := NewRP2C02(clock, divisor, nil, Horizontal)
 
 	// Mirrored palette
 	for _, i := range []uint16{0x3f10, 0x3f14, 0x3f18, 0x3f1c} {
@@ -355,7 +355,7 @@ func TestPaletteMirroring(t *testing.T) {
 func TestAddress(t *testing.T) {
 	divisor := uint64(4)
 	clock := m65go2.NewClock(1 * time.Nanosecond)
-	ppu := NewRP2C02(clock, divisor, Horizontal)
+	ppu := NewRP2C02(clock, divisor, nil, Horizontal)
 
 	ppu.Registers.Address = 0x0000
 	ppu.Fetch(0x2002)
@@ -380,7 +380,7 @@ func TestAddress(t *testing.T) {
 func TestDataIncrement1(t *testing.T) {
 	divisor := uint64(4)
 	clock := m65go2.NewClock(1 * time.Nanosecond)
-	ppu := NewRP2C02(clock, divisor, Horizontal)
+	ppu := NewRP2C02(clock, divisor, nil, Horizontal)
 
 	ppu.Registers.Address = 0x0000
 	ppu.Fetch(0x2002)
@@ -449,7 +449,7 @@ func TestDataIncrement1(t *testing.T) {
 func TestDataIncrement32(t *testing.T) {
 	divisor := uint64(4)
 	clock := m65go2.NewClock(1 * time.Nanosecond)
-	ppu := NewRP2C02(clock, divisor, Horizontal)
+	ppu := NewRP2C02(clock, divisor, nil, Horizontal)
 
 	ppu.Store(0x2000, 0x04)
 
