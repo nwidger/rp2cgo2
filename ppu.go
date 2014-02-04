@@ -1,7 +1,6 @@
 package rp2cgo2
 
 import (
-	"fmt"
 	"github.com/nwidger/m65go2"
 	"github.com/nwidger/rp2ago3"
 )
@@ -142,10 +141,6 @@ func NewRP2C02(clock m65go2.Clocker, divisor uint64, interrupt func(bool), mirro
 		Memory:    mem,
 		Interrupt: interrupt,
 	}
-}
-
-func (ppu *RP2C02) String() string {
-	return fmt.Sprintf("CYC:%3d SL:%3d", ppu.cycle, ppu.scanline)
 }
 
 func (ppu *RP2C02) Reset() {
@@ -340,7 +335,17 @@ func (ppu *RP2C02) Store(address uint16, value uint8) (oldValue uint8) {
 	return
 }
 
-func (ppu *RP2C02) incrementCoarseX() {
+func (ppu *RP2C02) transferX() {
+	// v: ....F.. ...EDCBA = t: ....F.. ...EDCBA
+	ppu.Registers.Address = (ppu.Registers.Address & 0x7be0) | (ppu.latchAddress & 0x041f)
+}
+
+func (ppu *RP2C02) transferY() {
+	// v: IHGF.ED CBA..... = t: IHGF.ED CBA.....
+	ppu.Registers.Address = (ppu.Registers.Address & 0x041f) | (ppu.latchAddress & 0x7be0)
+}
+
+func (ppu *RP2C02) incrementX() {
 	// v: .yyy NN YYYYY XXXXX
 	//     ||| || ||||| +++++-- coarse X scroll
 	//     ||| || +++++-------- coarse Y scroll
@@ -384,72 +389,483 @@ func (ppu *RP2C02) incrementY() {
 	ppu.Registers.Address = v
 }
 
-func (ppu *RP2C02) renderScanline() (cycles uint64) {
-	ppu.cycle = 0
-	ticks := ppu.clock.Ticks()
+func (ppu *RP2C02) rendering() bool {
+	return ppu.mask(ShowBackground) || ppu.mask(ShowSprites)
+}
+
+func (ppu *RP2C02) renderVisibleScanline(frame uint64, scanline uint16, ticks uint64) (cycles uint64) {
+	skipped := uint64(0)
 	cycles = CYCLES_PER_SCANLINE
 
-	switch {
-	// visible scanlines (0-239)
-	case ppu.scanline >= 0 && ppu.scanline <= 239:
-		// cycle 0
+	for cycle := uint64(0); cycle < CYCLES_PER_SCANLINE; cycle++ {
+		switch cycle {
+		// skipped on BG+odd
+		case 0:
+			if scanline == 0 && ppu.rendering() && frame&0x1 != 0 {
+				cycles--
+				skipped = 1
+			}
 
-		ppu.cycle = 1
-		ppu.clock.Await(ticks + ppu.cycle)
+		// NT byte
+		case 1:
+			if scanline == 261 {
+				ppu.Registers.Status &^= uint8(VBlankStarted | Sprite0Hit | SpriteOverflow)
+			}
 
-		// cycles 1-256
+			fallthrough
+		case 9:
+			fallthrough
+		case 17:
+			fallthrough
+		case 25:
+			fallthrough
+		case 33:
+			fallthrough
+		case 41:
+			fallthrough
+		case 49:
+			fallthrough
+		case 57:
+			fallthrough
+		case 65:
+			fallthrough
+		case 73:
+			fallthrough
+		case 81:
+			fallthrough
+		case 89:
+			fallthrough
+		case 97:
+			fallthrough
+		case 105:
+			fallthrough
+		case 113:
+			fallthrough
+		case 121:
+			fallthrough
+		case 129:
+			fallthrough
+		case 137:
+			fallthrough
+		case 145:
+			fallthrough
+		case 153:
+			fallthrough
+		case 161:
+			fallthrough
+		case 169:
+			fallthrough
+		case 177:
+			fallthrough
+		case 185:
+			fallthrough
+		case 193:
+			fallthrough
+		case 201:
+			fallthrough
+		case 209:
+			fallthrough
+		case 217:
+			fallthrough
+		case 225:
+			fallthrough
+		case 233:
+			fallthrough
+		case 241:
+			fallthrough
+		case 249:
+			fallthrough
+		case 321:
+			fallthrough
+		case 329:
+			fallthrough
+		case 337:
+			fallthrough
+		case 339:
+			// ppu.fetchNTByte()
 
-		ppu.cycle = 257
-		ppu.clock.Await(ticks + ppu.cycle)
+		// AT byte
+		case 3:
+			fallthrough
+		case 11:
+			fallthrough
+		case 19:
+			fallthrough
+		case 27:
+			fallthrough
+		case 35:
+			fallthrough
+		case 43:
+			fallthrough
+		case 51:
+			fallthrough
+		case 59:
+			fallthrough
+		case 67:
+			fallthrough
+		case 75:
+			fallthrough
+		case 83:
+			fallthrough
+		case 91:
+			fallthrough
+		case 99:
+			fallthrough
+		case 107:
+			fallthrough
+		case 115:
+			fallthrough
+		case 123:
+			fallthrough
+		case 131:
+			fallthrough
+		case 139:
+			fallthrough
+		case 147:
+			fallthrough
+		case 155:
+			fallthrough
+		case 163:
+			fallthrough
+		case 171:
+			fallthrough
+		case 179:
+			fallthrough
+		case 187:
+			fallthrough
+		case 195:
+			fallthrough
+		case 203:
+			fallthrough
+		case 211:
+			fallthrough
+		case 219:
+			fallthrough
+		case 227:
+			fallthrough
+		case 235:
+			fallthrough
+		case 243:
+			fallthrough
+		case 251:
+			fallthrough
+		case 323:
+			fallthrough
+		case 331:
+			// ppu.fetchATByte()
 
-		// cycles 257-320
+		// Low BG tile byte
+		case 5:
+			fallthrough
+		case 13:
+			fallthrough
+		case 21:
+			fallthrough
+		case 29:
+			fallthrough
+		case 37:
+			fallthrough
+		case 45:
+			fallthrough
+		case 53:
+			fallthrough
+		case 61:
+			fallthrough
+		case 69:
+			fallthrough
+		case 77:
+			fallthrough
+		case 85:
+			fallthrough
+		case 93:
+			fallthrough
+		case 101:
+			fallthrough
+		case 109:
+			fallthrough
+		case 117:
+			fallthrough
+		case 125:
+			fallthrough
+		case 133:
+			fallthrough
+		case 141:
+			fallthrough
+		case 149:
+			fallthrough
+		case 157:
+			fallthrough
+		case 165:
+			fallthrough
+		case 173:
+			fallthrough
+		case 181:
+			fallthrough
+		case 189:
+			fallthrough
+		case 197:
+			fallthrough
+		case 205:
+			fallthrough
+		case 213:
+			fallthrough
+		case 221:
+			fallthrough
+		case 229:
+			fallthrough
+		case 237:
+			fallthrough
+		case 245:
+			fallthrough
+		case 253:
+			fallthrough
+		case 325:
+			fallthrough
+		case 333:
+			// ppu.fetchLowBGTileByte()
 
-		ppu.cycle = 231
-		ppu.clock.Await(ticks + ppu.cycle)
+		// High BG tile byte
+		case 7:
+			fallthrough
+		case 15:
+			fallthrough
+		case 23:
+			fallthrough
+		case 31:
+			fallthrough
+		case 39:
+			fallthrough
+		case 47:
+			fallthrough
+		case 55:
+			fallthrough
+		case 63:
+			fallthrough
+		case 71:
+			fallthrough
+		case 79:
+			fallthrough
+		case 87:
+			fallthrough
+		case 95:
+			fallthrough
+		case 103:
+			fallthrough
+		case 111:
+			fallthrough
+		case 119:
+			fallthrough
+		case 127:
+			fallthrough
+		case 135:
+			fallthrough
+		case 143:
+			fallthrough
+		case 151:
+			fallthrough
+		case 159:
+			fallthrough
+		case 167:
+			fallthrough
+		case 175:
+			fallthrough
+		case 183:
+			fallthrough
+		case 191:
+			fallthrough
+		case 199:
+			fallthrough
+		case 207:
+			fallthrough
+		case 215:
+			fallthrough
+		case 223:
+			fallthrough
+		case 231:
+			fallthrough
+		case 239:
+			fallthrough
+		case 247:
+			fallthrough
+		case 255:
+			fallthrough
+		case 327:
+			fallthrough
+		case 335:
+			// ppu.fetchHighBGTileByte()
 
-		// cycles 321-336
+		// inc hori(v)
+		case 8:
+			fallthrough
+		case 16:
+			fallthrough
+		case 24:
+			fallthrough
+		case 32:
+			fallthrough
+		case 40:
+			fallthrough
+		case 48:
+			fallthrough
+		case 56:
+			fallthrough
+		case 64:
+			fallthrough
+		case 72:
+			fallthrough
+		case 80:
+			fallthrough
+		case 88:
+			fallthrough
+		case 96:
+			fallthrough
+		case 104:
+			fallthrough
+		case 112:
+			fallthrough
+		case 120:
+			fallthrough
+		case 128:
+			fallthrough
+		case 136:
+			fallthrough
+		case 144:
+			fallthrough
+		case 152:
+			fallthrough
+		case 160:
+			fallthrough
+		case 168:
+			fallthrough
+		case 176:
+			fallthrough
+		case 184:
+			fallthrough
+		case 192:
+			fallthrough
+		case 200:
+			fallthrough
+		case 208:
+			fallthrough
+		case 216:
+			fallthrough
+		case 224:
+			fallthrough
+		case 232:
+			fallthrough
+		case 240:
+			fallthrough
+		case 248:
+			fallthrough
+		case 328:
+			fallthrough
+		case 336:
+			ppu.incrementX()
 
-		ppu.cycle = 337
-		ppu.clock.Await(ticks + ppu.cycle)
+		// inc vert(v)
+		case 256:
+			if ppu.rendering() {
+				ppu.incrementY()
+			}
 
-		// cycles 337-340
+		// hori(v) = hori(t)
+		case 257:
+			if ppu.rendering() {
+				ppu.transferX()
+			}
 
-		ppu.cycle = 341
-		ppu.clock.Await(ticks + ppu.cycle)
-	// post-render ppu.scanline
-	case ppu.scanline == 240:
-
-	// vertical blanking scanlines
-	case ppu.scanline == 241:
-		ppu.cycle = 1
-		ppu.clock.Await(ticks + ppu.cycle)
-
-		ppu.Registers.Status |= uint8(VBlankStarted)
-
-		if ppu.Interrupt != nil {
-			ppu.Interrupt(true)
+		// vert(v) = vert(t)
+		case 280:
+			fallthrough
+		case 281:
+			fallthrough
+		case 282:
+			fallthrough
+		case 283:
+			fallthrough
+		case 284:
+			fallthrough
+		case 285:
+			fallthrough
+		case 286:
+			fallthrough
+		case 287:
+			fallthrough
+		case 288:
+			fallthrough
+		case 289:
+			fallthrough
+		case 290:
+			fallthrough
+		case 291:
+			fallthrough
+		case 292:
+			fallthrough
+		case 293:
+			fallthrough
+		case 294:
+			fallthrough
+		case 295:
+			fallthrough
+		case 296:
+			fallthrough
+		case 297:
+			fallthrough
+		case 298:
+			fallthrough
+		case 299:
+			fallthrough
+		case 300:
+			fallthrough
+		case 301:
+			fallthrough
+		case 302:
+			fallthrough
+		case 303:
+			fallthrough
+		case 304:
+			if scanline == 261 && ppu.rendering() {
+				ppu.transferY()
+			}
 		}
-	case ppu.scanline >= 242 && ppu.scanline <= 260:
 
-	// pre-render ppu.scanline
-	case ppu.scanline == 261:
-		ppu.cycle = 1
-		ppu.clock.Await(ticks + ppu.cycle)
-		ppu.Registers.Status &^= uint8(VBlankStarted | Sprite0Hit | SpriteOverflow)
+		ppu.clock.Await(ticks + cycle - skipped)
 	}
-
-	cycles -= ppu.cycle
 
 	return
 }
 
-func (ppu *RP2C02) Run() (err error) {
-	ppu.scanline = POWERUP_SCANLINE
+func (ppu *RP2C02) renderScanline(frame uint64, scanline uint16, ticks uint64) (cycles uint64) {
+	cycles = CYCLES_PER_SCANLINE
 
-	for {
-		ticks := ppu.clock.Ticks()
-		ppu.clock.Await(ticks + ppu.renderScanline())
-		ppu.scanline = (ppu.scanline + 1) % NUM_SCANLINES
+	switch {
+	// visible scanlines (0-239), post-render scanline (240), pre-render scanline (261)
+	case scanline < 241 || scanline > 260:
+		cycles = ppu.renderVisibleScanline(frame, scanline, ticks)
+	// vertical blanking scanlines (241-260)
+	default:
+		if scanline == 241 {
+			ppu.clock.Await(ticks + 1)
+
+			ppu.Registers.Status |= uint8(VBlankStarted)
+
+			if ppu.Interrupt != nil {
+				ppu.Interrupt(true)
+			}
+		}
+	}
+
+	ppu.clock.Await(ticks + cycles)
+	return
+}
+
+func (ppu *RP2C02) Run() (err error) {
+	scanline := POWERUP_SCANLINE
+
+	for frame := uint64(0); ; frame++ {
+		for ; scanline < NUM_SCANLINES; scanline = (scanline + 1) % NUM_SCANLINES {
+			ppu.renderScanline(frame, scanline, ppu.clock.Ticks())
+		}
 	}
 
 	return
