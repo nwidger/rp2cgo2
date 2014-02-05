@@ -241,6 +241,118 @@ func TestAddress(t *testing.T) {
 	}
 }
 
+func TestSprite(t *testing.T) {
+	divisor := uint64(4)
+	clock := m65go2.NewClock(1 * time.Nanosecond)
+	ppu := NewRP2C02(clock, divisor, nil, Vertical)
+
+	sprite := uint32(0)
+
+	// YPosition
+	sprite = 0x00000000
+
+	if ppu.sprite(sprite, YPosition) != 0x00 {
+		t.Error("YPosition is not 0x00")
+	}
+
+	sprite = 0xffffffff
+
+	if ppu.sprite(sprite, YPosition) != 0xff {
+		t.Error("YPosition is not 0xff")
+	}
+
+	// TileBank
+	sprite = 0x00000000
+
+	if ppu.sprite(sprite, TileBank) != 0x00 {
+		t.Error("TileBank is not 0x00")
+	}
+
+	sprite = 0xffffffff
+
+	if ppu.sprite(sprite, TileBank) != 0x01 {
+		t.Error("TileBank is not 0x01")
+	}
+
+	// TopTile
+	sprite = 0x00000000
+
+	if ppu.sprite(sprite, TopTile) != 0x00 {
+		t.Error("TopTile is not 0x00")
+	}
+
+	sprite = 0xffffffff
+
+	if ppu.sprite(sprite, TopTile) != 0x7f {
+		t.Error("TopTile is not 0x7f")
+	}
+
+	// SpritePalette
+	sprite = 0x00000000
+
+	if ppu.sprite(sprite, SpritePalette) != 0x00 {
+		t.Error("SpritePalette is not 0x00")
+	}
+
+	sprite = 0xffffffff
+
+	if ppu.sprite(sprite, SpritePalette) != 0x03 {
+		t.Error("SpritePalette is not 0x03")
+	}
+
+	// Priority
+	sprite = 0x00000000
+
+	if ppu.sprite(sprite, Priority) != 0x00 {
+		t.Error("Priority is not 0x00")
+	}
+
+	sprite = 0xffffffff
+
+	if ppu.sprite(sprite, Priority) != 0x01 {
+		t.Error("Priority is not 0x01")
+	}
+
+	// FlipHorizontally
+	sprite = 0x00000000
+
+	if ppu.sprite(sprite, FlipHorizontally) != 0x00 {
+		t.Error("FlipHorizontally is not 0x00")
+	}
+
+	sprite = 0xffffffff
+
+	if ppu.sprite(sprite, FlipHorizontally) != 0x01 {
+		t.Error("FlipHorizontally is not 0x01")
+	}
+
+	// FlipVertically
+	sprite = 0x00000000
+
+	if ppu.sprite(sprite, FlipVertically) != 0x00 {
+		t.Error("FlipVertically is not 0x00")
+	}
+
+	sprite = 0xffffffff
+
+	if ppu.sprite(sprite, FlipVertically) != 0x01 {
+		t.Error("FlipVertically is not 0x01")
+	}
+
+	// XPosition
+	sprite = 0x00000000
+
+	if ppu.sprite(sprite, XPosition) != 0x00 {
+		t.Error("XPosition is not 0x00")
+	}
+
+	sprite = 0xffffffff
+
+	if ppu.sprite(sprite, XPosition) != 0xff {
+		t.Error("XPosition is not 0xff")
+	}
+}
+
 func TestOAMAddress(t *testing.T) {
 	divisor := uint64(4)
 	clock := m65go2.NewClock(1 * time.Nanosecond)

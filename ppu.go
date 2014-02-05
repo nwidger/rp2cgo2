@@ -73,6 +73,47 @@ const (
 	_
 )
 
+type SpriteFlag uint32
+
+const (
+	// byte 0
+	YPosition SpriteFlag = 1 << iota
+	_
+	_
+	_
+	_
+	_
+	_
+	_
+	// byte 1
+	TileBank
+	TopTile
+	_
+	_
+	_
+	_
+	_
+	_
+	// byte 2
+	SpritePalette
+	_
+	_
+	_
+	_
+	Priority
+	FlipHorizontally
+	FlipVertically
+	// byte 3
+	XPosition
+	_
+	_
+	_
+	_
+	_
+	_
+	_
+)
+
 type Registers struct {
 	Controller uint8
 	Mask       uint8
@@ -249,6 +290,29 @@ func (ppu *RP2C02) address(flag AddressFlag) (value uint16) {
 		value = (word & 0x0c00) >> 10
 	case FineYScroll:
 		value = (word & 0x7000) >> 12
+	}
+
+	return
+}
+
+func (ppu *RP2C02) sprite(sprite uint32, flag SpriteFlag) (value uint8) {
+	switch flag {
+	case YPosition:
+		value = uint8(sprite)
+	case TileBank:
+		value = uint8((sprite & 0x00000100) >> 8)
+	case TopTile:
+		value = uint8((sprite & 0x0000fe00) >> 9)
+	case SpritePalette:
+		value = uint8((sprite & 0x00030000) >> 16)
+	case Priority:
+		value = uint8((sprite & 0x00200000) >> 21)
+	case FlipHorizontally:
+		value = uint8((sprite & 0x00400000) >> 22)
+	case FlipVertically:
+		value = uint8((sprite & 0x00800000) >> 23)
+	case XPosition:
+		value = uint8(sprite >> 24)
 	}
 
 	return
