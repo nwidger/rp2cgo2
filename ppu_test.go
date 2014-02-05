@@ -22,25 +22,25 @@ func TestController(t *testing.T) {
 	ppu.Registers.Controller = 0xff - 0x03
 
 	if ppu.controller(BaseNametableAddress) != 0x2000 {
-		t.Error("BaseNametableAddress is %04X not 0x2000", ppu.controller(BaseNametableAddress))
+		t.Errorf("BaseNametableAddress is %04X not 0x2000", ppu.controller(BaseNametableAddress))
 	}
 
 	ppu.Registers.Controller = 0xff - 0x02
 
 	if ppu.controller(BaseNametableAddress) != 0x2400 {
-		t.Error("BaseNametableAddress is %04X not 0x2400", ppu.controller(BaseNametableAddress))
+		t.Errorf("BaseNametableAddress is %04X not 0x2400", ppu.controller(BaseNametableAddress))
 	}
 
 	ppu.Registers.Controller = 0xff - 0x01
 
 	if ppu.controller(BaseNametableAddress) != 0x2800 {
-		t.Error("BaseNametableAddress is %04X not 0x2800", ppu.controller(BaseNametableAddress))
+		t.Errorf("BaseNametableAddress is %04X not 0x2800", ppu.controller(BaseNametableAddress))
 	}
 
 	ppu.Registers.Controller = 0xff
 
 	if ppu.controller(BaseNametableAddress) != 0x2c00 {
-		t.Error("BaseNametableAddress is %04X not 0x2c00", ppu.controller(BaseNametableAddress))
+		t.Errorf("BaseNametableAddress is %04X not 0x2c00", ppu.controller(BaseNametableAddress))
 	}
 
 	// VRAMAddressIncrement
@@ -172,6 +172,72 @@ func TestStatus(t *testing.T) {
 		if !ppu.status(s) {
 			t.Errorf("Status %v is not true", s)
 		}
+	}
+}
+
+func TestAddress(t *testing.T) {
+	divisor := uint64(4)
+	clock := m65go2.NewClock(1 * time.Nanosecond)
+	ppu := NewRP2C02(clock, divisor, nil, Vertical)
+
+	ppu.Registers.Address = 0x00
+	ppu.Store(0x2006, 0xff)
+	ppu.Store(0x2006, 0xff)
+
+	if ppu.Registers.Address != 0x3fff {
+		t.Errorf("Register is %04X not 0x3fff\n", ppu.Registers.Address)
+	}
+
+	// CoarseXScroll
+	ppu.Registers.Address = 0x0000
+
+	if ppu.address(CoarseXScroll) != 0x0000 {
+		t.Errorf("CoarseXScroll is %04X not 0x0000", ppu.address(CoarseXScroll))
+	}
+
+	ppu.Registers.Address = 0xffff
+
+	if ppu.address(CoarseXScroll) != 0x001f {
+		t.Errorf("CoarseXScroll is %04X not 0x001f", ppu.address(CoarseXScroll))
+	}
+
+	// CoarseYScroll
+	ppu.Registers.Address = 0x0000
+
+	if ppu.address(CoarseYScroll) != 0x0000 {
+		t.Errorf("CoarseYScroll is %04X not 0x0000", ppu.address(CoarseYScroll))
+	}
+
+	ppu.Registers.Address = 0xffff
+
+	if ppu.address(CoarseYScroll) != 0x001f {
+		t.Errorf("CoarseYScroll is %04X not 0x001f", ppu.address(CoarseYScroll))
+	}
+
+	// NametableSelect
+	ppu.Registers.Address = 0x0000
+
+	if ppu.address(NametableSelect) != 0x0000 {
+		t.Errorf("NametableSelect is %04X not 0x0000", ppu.address(NametableSelect))
+	}
+
+	ppu.Registers.Address = 0xffff
+
+	if ppu.address(NametableSelect) != 0x0003 {
+		t.Errorf("NametableSelect is %04X not 0x0003", ppu.address(NametableSelect))
+	}
+
+	// FineYScroll
+	ppu.Registers.Address = 0x0000
+
+	if ppu.address(FineYScroll) != 0x0000 {
+		t.Errorf("FineYScroll is %04X not 0x0000", ppu.address(FineYScroll))
+	}
+
+	ppu.Registers.Address = 0xffff
+
+	if ppu.address(FineYScroll) != 0x0007 {
+		t.Errorf("FineYScroll is %04X not 0x0007", ppu.address(FineYScroll))
 	}
 }
 
@@ -352,7 +418,7 @@ func TestPaletteMirroring(t *testing.T) {
 	}
 }
 
-func TestAddress(t *testing.T) {
+func TestAddressFetchStore(t *testing.T) {
 	divisor := uint64(4)
 	clock := m65go2.NewClock(1 * time.Nanosecond)
 	ppu := NewRP2C02(clock, divisor, nil, Horizontal)

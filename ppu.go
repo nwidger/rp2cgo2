@@ -52,6 +52,27 @@ const (
 	VBlankStarted
 )
 
+type AddressFlag uint16
+
+const (
+	CoarseXScroll AddressFlag = 1 << iota
+	_
+	_
+	_
+	_
+	CoarseYScroll
+	_
+	_
+	_
+	_
+	NametableSelect
+	_
+	FineYScroll
+	_
+	_
+	_
+)
+
 type Registers struct {
 	Controller uint8
 	Mask       uint8
@@ -212,6 +233,23 @@ func (ppu *RP2C02) mask(flag MaskFlag) (value bool) {
 func (ppu *RP2C02) status(flag StatusFlag) (value bool) {
 	if ppu.Registers.Status&uint8(flag) != 0 {
 		value = true
+	}
+
+	return
+}
+
+func (ppu *RP2C02) address(flag AddressFlag) (value uint16) {
+	word := ppu.Registers.Address
+
+	switch flag {
+	case CoarseXScroll:
+		value = word & 0x001f
+	case CoarseYScroll:
+		value = (word & 0x03e0) >> 5
+	case NametableSelect:
+		value = (word & 0x0c00) >> 10
+	case FineYScroll:
+		value = (word & 0x7000) >> 12
 	}
 
 	return
