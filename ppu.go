@@ -78,7 +78,6 @@ type Registers struct {
 	Mask       uint8
 	Status     uint8
 	OAMAddress uint8
-	OAMData    uint8
 	Scroll     uint16
 	Address    uint16
 	Data       uint8
@@ -89,7 +88,6 @@ func (reg *Registers) Reset() {
 	reg.Mask = 0x00
 	reg.Status = 0x00
 	reg.OAMAddress = 0x00
-	reg.OAMData = 0x00
 	reg.Scroll = 0x00
 	reg.Address = 0x00
 	reg.Data = 0x00
@@ -108,6 +106,7 @@ type RP2C02 struct {
 	Registers    Registers
 	Memory       *rp2ago3.MappedMemory
 	Interrupt    func(state bool)
+	oam          [0x100]uint8
 	scanline     uint16
 	cycle        uint64
 }
@@ -298,7 +297,7 @@ func (ppu *RP2C02) Fetch(address uint16) (value uint8) {
 		ppu.latch = false
 	// OAMData
 	case 0x2004:
-		value = ppu.Registers.OAMData
+		value = ppu.oam[ppu.Registers.OAMAddress]
 	// Data
 	case 0x2007:
 		value = ppu.Registers.Data
@@ -334,8 +333,9 @@ func (ppu *RP2C02) Store(address uint16, value uint8) (oldValue uint8) {
 		ppu.Registers.OAMAddress = value
 	// OAMData
 	case 0x2004:
-		oldValue = ppu.Registers.OAMData
-		ppu.Registers.OAMData = value
+		oldValue = ppu.oam[ppu.Registers.OAMAddress]
+		ppu.oam[ppu.Registers.OAMAddress] = value
+		ppu.Registers.OAMAddress++
 	// Scroll
 	case 0x2005:
 		if !ppu.latch {

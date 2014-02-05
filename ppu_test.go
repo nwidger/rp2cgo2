@@ -241,6 +241,38 @@ func TestAddress(t *testing.T) {
 	}
 }
 
+func TestOAMAddress(t *testing.T) {
+	divisor := uint64(4)
+	clock := m65go2.NewClock(1 * time.Nanosecond)
+	ppu := NewRP2C02(clock, divisor, nil, Vertical)
+
+	ppu.Registers.OAMAddress = 0x00
+
+	ppu.Store(0x2003, 0xff)
+
+	if ppu.Registers.OAMAddress != 0xff {
+		t.Errorf("Register is %02X not 0xff\n", ppu.Registers.OAMAddress)
+	}
+}
+
+func TestOAMData(t *testing.T) {
+	divisor := uint64(4)
+	clock := m65go2.NewClock(1 * time.Nanosecond)
+	ppu := NewRP2C02(clock, divisor, nil, Vertical)
+
+	ppu.Registers.OAMAddress = 0x00
+
+	for i := uint16(0x0000); i <= 0x00ff; i++ {
+		ppu.Store(0x2004, uint8(i))
+	}
+
+	for i := uint16(0x0000); i <= 0x00ff; i++ {
+		if ppu.oam[uint8(i)] != uint8(i) {
+			t.Errorf("Memory is %02X not %02X\n", ppu.oam[uint8(i)], uint8(i))
+		}
+	}
+}
+
 func TestVerticalMirroring(t *testing.T) {
 	divisor := uint64(4)
 	clock := m65go2.NewClock(1 * time.Nanosecond)
