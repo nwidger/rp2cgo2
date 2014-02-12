@@ -379,8 +379,8 @@ func TestOAMData(t *testing.T) {
 	}
 
 	for i := uint16(0x0000); i <= 0x00ff; i++ {
-		if ppu.oam[uint8(i)] != uint8(i) {
-			t.Errorf("Memory is %02X not %02X\n", ppu.oam[uint8(i)], uint8(i))
+		if ppu.oam.Fetch(uint16(i)) != uint8(i) {
+			t.Errorf("Memory is %02X not %02X\n", ppu.oam.Fetch(uint16(i)), uint8(i))
 		}
 	}
 }

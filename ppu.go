@@ -147,7 +147,8 @@ type RP2C02 struct {
 	Registers    Registers
 	Memory       *rp2ago3.MappedMemory
 	Interrupt    func(state bool)
-	oam          [0x100]uint8
+	oam          *m65go2.BasicMemory
+	secondaryOAM *m65go2.BasicMemory
 	scanline     uint16
 	cycle        uint64
 }
@@ -155,7 +156,7 @@ type RP2C02 struct {
 func NewRP2C02(clock m65go2.Clocker, divisor uint64, interrupt func(bool), mirroring Mirroring) *RP2C02 {
 	divider := m65go2.NewDivider(clock, divisor)
 
-	mem := rp2ago3.NewMappedMemory(m65go2.NewBasicMemory())
+	mem := rp2ago3.NewMappedMemory(m65go2.NewBasicMemory(m65go2.DEFAULT_MEMORY_SIZE))
 	mirrors := make(map[uint16]uint16)
 
 	switch mirroring {
@@ -198,9 +199,11 @@ func NewRP2C02(clock m65go2.Clocker, divisor uint64, interrupt func(bool), mirro
 	mem.AddMirrors(mirrors)
 
 	return &RP2C02{
-		clock:     divider,
-		Memory:    mem,
-		Interrupt: interrupt,
+		clock:        divider,
+		Memory:       mem,
+		Interrupt:    interrupt,
+		oam:          m65go2.NewBasicMemory(256),
+		secondaryOAM: m65go2.NewBasicMemory(32),
 	}
 }
 
@@ -217,7 +220,7 @@ func (ppu *RP2C02) controller(flag ControllerFlag) (value uint16) {
 	switch flag {
 	case BaseNametableAddress:
 		// 0x2000 | 0x2400 | 0x2800 | 0x2c00
-		value = 0x2000 + (uint16(byte&0x03) * 0x0400)
+		value = 0x2000 | (uint16(byte&0x03) << 10)
 	case VRAMAddressIncrement:
 		switch bit {
 		case 0:
@@ -361,7 +364,7 @@ func (ppu *RP2C02) Fetch(address uint16) (value uint8) {
 		ppu.latch = false
 	// OAMData
 	case 0x2004:
-		value = ppu.oam[ppu.Registers.OAMAddress]
+		value = ppu.oam.Fetch(uint16(ppu.Registers.OAMAddress))
 	// Data
 	case 0x2007:
 		value = ppu.Registers.Data
@@ -397,8 +400,8 @@ func (ppu *RP2C02) Store(address uint16, value uint8) (oldValue uint8) {
 		ppu.Registers.OAMAddress = value
 	// OAMData
 	case 0x2004:
-		oldValue = ppu.oam[ppu.Registers.OAMAddress]
-		ppu.oam[ppu.Registers.OAMAddress] = value
+		oldValue = ppu.oam.Fetch(uint16(ppu.Registers.OAMAddress))
+		ppu.oam.Store(uint16(ppu.Registers.OAMAddress), value)
 		ppu.Registers.OAMAddress++
 	// Scroll
 	case 0x2005:
@@ -476,15 +479,13 @@ func (ppu *RP2C02) incrementY() {
 	if (v & 0x7000) != 0x7000 { // if fine Y < 7
 		v += 0x1000 // increment fine Y
 	} else {
-		v &= 0x0fff // fine Y = 0
-
 		switch v & 0x03e0 {
 		case 0x3a0: // coarse Y = 29
 			v ^= 0x0800 // switch vertical nametable
 		case 0x3e0: // coarse Y = 31
-			v &= 0x7c1f // coarse Y = 0, nametable not switched
+			v &= 0x73e0 // coarse Y = 0, nametable not switched
 		default:
-			v += 0x0020 // increment coarse Y
+			v = (v & 0x0fff) + 0x0020 // increment coarse Y
 		}
 	}
 
@@ -495,9 +496,42 @@ func (ppu *RP2C02) rendering() bool {
 	return ppu.mask(ShowBackground) || ppu.mask(ShowSprites)
 }
 
+func (ppu *RP2C02) fetchName(address uint16) (value uint8) {
+	//               NNii iiii iiii
+	// 0x2000 = 0010 0000 0000 0000
+	// 0x2400 = 0010 0100 0000 0000
+	// 0x2800 = 0010 1000 0000 0000
+	// 0x2c00 = 0010 1100 0000 0000
+	value = ppu.Memory.Fetch(0x2000 | address&0x0fff)
+
+	return
+}
+
+func (ppu *RP2C02) fetchAttribute(address uint16) (value uint8) {
+	// 0x23c0 = 0010 0011 1100 0000
+	//               NN = 0x0c00
+	//                      ii i = 0x0038
+	//                          jjj = 0x0007
+	value = ppu.Memory.Fetch(0x23c0 | (address & 0x0c00) | (address >> 4 & 0x0038) | (address >> 2 & 0x0007))
+
+	return
+}
+
 func (ppu *RP2C02) renderVisibleScanline(frame uint64, scanline uint16, ticks uint64) (cycles uint64) {
 	skipped := uint64(0)
 	cycles = CYCLES_PER_SCANLINE
+
+	patternAddress := uint16(0)
+	pattern := [2]uint8{0, 0}
+	attribute := uint8(0)
+
+	_ = attribute
+	_ = pattern
+
+	phase := uint16(0)
+	sprite := uint16(0)
+	value := uint8(0)
+	address := uint16(0)
 
 	for cycle := uint64(0); cycle < CYCLES_PER_SCANLINE; cycle++ {
 		switch cycle {
@@ -584,7 +618,12 @@ func (ppu *RP2C02) renderVisibleScanline(frame uint64, scanline uint16, ticks ui
 		case 337:
 			fallthrough
 		case 339:
-			// ppu.fetchNTByte()
+			// 000p NNNN NNNN vvvv
+			if ppu.rendering() {
+				patternAddress = ppu.controller(SpritePatternAddress) |
+					uint16(ppu.fetchName(ppu.Registers.Address))<<4 |
+					ppu.address(FineYScroll)
+			}
 
 		// AT byte
 		case 3:
@@ -654,7 +693,22 @@ func (ppu *RP2C02) renderVisibleScanline(frame uint64, scanline uint16, ticks ui
 		case 323:
 			fallthrough
 		case 331:
-			// ppu.fetchATByte()
+			// combine 2nd X- and Y-bit of loopy_v to
+			// determine which 2-bits of AT byte to use:
+			//
+			// value = (topleft << 0) | (topright << 2) | (bottomleft << 4) | (bottomright << 6)
+			//
+			// v: .yyy NNYY YYYX XXXX|
+			//    .... .... .... ..X.|
+			// v >> 4: .... .... .Y..|....
+			//         .X. = 000 = 0
+			//         Y..   010 = 2
+			//               100 = 4
+			//               110 = 6
+			if ppu.rendering() {
+				attribute = ppu.fetchAttribute(ppu.Registers.Address) >>
+					((ppu.Registers.Address & 0x2) | (ppu.Registers.Address >> 4 & 0x4))
+			}
 
 		// Low BG tile byte
 		case 5:
@@ -724,7 +778,12 @@ func (ppu *RP2C02) renderVisibleScanline(frame uint64, scanline uint16, ticks ui
 		case 325:
 			fallthrough
 		case 333:
-			// ppu.fetchLowBGTileByte()
+			if ppu.rendering() {
+				p := ppu.Memory.Fetch(patternAddress)
+
+				pattern[1] = p >> 0 & 0x55
+				pattern[0] = p >> 1 & 0x55
+			}
 
 		// High BG tile byte
 		case 7:
@@ -794,7 +853,12 @@ func (ppu *RP2C02) renderVisibleScanline(frame uint64, scanline uint16, ticks ui
 		case 327:
 			fallthrough
 		case 335:
-			// ppu.fetchHighBGTileByte()
+			if ppu.rendering() {
+				p := ppu.Memory.Fetch(patternAddress | 0x0008)
+
+				pattern[0] = p << 0 & 0xaa
+				pattern[1] = p << 1 & 0xaa
+			}
 
 		// inc hori(v)
 		case 8:
@@ -862,7 +926,9 @@ func (ppu *RP2C02) renderVisibleScanline(frame uint64, scanline uint16, ticks ui
 		case 328:
 			fallthrough
 		case 336:
-			ppu.incrementX()
+			if ppu.rendering() {
+				ppu.incrementX()
+			}
 
 		// inc vert(v)
 		case 256:
@@ -931,6 +997,55 @@ func (ppu *RP2C02) renderVisibleScanline(frame uint64, scanline uint16, ticks ui
 			}
 		}
 
+		// sprite evaluation
+		if scanline != 261 {
+			switch {
+			case cycle == 0:
+				ppu.oam.DisableReads()
+			case cycle == 65:
+				ppu.oam.EnableReads()
+				fallthrough
+			case cycle >= 66 && cycle <= 256:
+				if cycle&0x001 == 0 {
+					value = ppu.oam.Fetch(address)
+				} else {
+					switch phase {
+					case 0:
+						if scanline-uint16(ppu.sprite(uint32(value), YPosition)) >=
+							uint16(ppu.controller(SpriteSize)) {
+
+						}
+
+						fallthrough
+					case 1:
+						fallthrough
+					case 2:
+						fallthrough
+					case 3:
+						ppu.secondaryOAM.Store(sprite+phase, value)
+						phase++
+					}
+
+					if phase == 4 {
+						address += 4
+
+						switch {
+						case address == 0x0100:
+							// done. goto 4
+						case sprite == 8:
+							ppu.secondaryOAM.DisableWrites()
+							fallthrough
+						default:
+							phase = 0
+						}
+					}
+
+				}
+			case cycle >= 257 && cycle <= 320:
+			case cycle >= 321 && cycle <= 340:
+			}
+		}
+
 		ppu.clock.Await(ticks + cycle - skipped)
 	}
 
@@ -948,11 +1063,13 @@ func (ppu *RP2C02) renderScanline(frame uint64, scanline uint16, ticks uint64) (
 	default:
 		if scanline == 241 {
 			ppu.clock.Await(ticks + 1)
-
 			ppu.Registers.Status |= uint8(VBlankStarted)
 
-			if ppu.Interrupt != nil {
-				ppu.Interrupt(true)
+			if ppu.Registers.Status&uint8(VBlankStarted) != 0 &&
+				ppu.Registers.Controller&uint8(NMIOnVBlank) != 0 {
+				if ppu.Interrupt != nil {
+					ppu.Interrupt(true)
+				}
 			}
 		}
 	}
