@@ -1,6 +1,7 @@
 package rp2cgo2
 
 import (
+	"fmt"
 	"github.com/nwidger/m65go2"
 	"github.com/nwidger/rp2ago3"
 )
@@ -147,8 +148,7 @@ type RP2C02 struct {
 	Registers    Registers
 	Memory       *rp2ago3.MappedMemory
 	Interrupt    func(state bool)
-	oam          *m65go2.BasicMemory
-	secondaryOAM *m65go2.BasicMemory
+	oam          *OAM
 	scanline     uint16
 	cycle        uint64
 }
@@ -199,11 +199,10 @@ func NewRP2C02(clock m65go2.Clocker, divisor uint64, interrupt func(bool), mirro
 	mem.AddMirrors(mirrors)
 
 	return &RP2C02{
-		clock:        divider,
-		Memory:       mem,
-		Interrupt:    interrupt,
-		oam:          m65go2.NewBasicMemory(256),
-		secondaryOAM: m65go2.NewBasicMemory(32),
+		clock:     divider,
+		Memory:    mem,
+		Interrupt: interrupt,
+		oam:       NewOAM(),
 	}
 }
 
@@ -528,12 +527,8 @@ func (ppu *RP2C02) renderVisibleScanline(frame uint64, scanline uint16, ticks ui
 	_ = attribute
 	_ = pattern
 
-	phase := uint16(0)
-	sprite := uint16(0)
-	value := uint8(0)
-	address := uint16(0)
-
 	for cycle := uint64(0); cycle < CYCLES_PER_SCANLINE; cycle++ {
+		// fmt.Printf("======== cycle %v ========\n", cycle)
 		switch cycle {
 		// skipped on BG+odd
 		case 0:
@@ -778,6 +773,11 @@ func (ppu *RP2C02) renderVisibleScanline(frame uint64, scanline uint16, ticks ui
 		case 325:
 			fallthrough
 		case 333:
+			// pattern[0] = HLHL HLHL
+			//              7755 3311
+			//
+			// pattern[1] = HLHL HLHL
+			//              6644 2200
 			if ppu.rendering() {
 				p := ppu.Memory.Fetch(patternAddress)
 
@@ -853,6 +853,11 @@ func (ppu *RP2C02) renderVisibleScanline(frame uint64, scanline uint16, ticks ui
 		case 327:
 			fallthrough
 		case 335:
+			// pattern[0] = HLHL HLHL
+			//              7755 3311
+			//
+			// pattern[1] = HLHL HLHL
+			//              6644 2200
 			if ppu.rendering() {
 				p := ppu.Memory.Fetch(patternAddress | 0x0008)
 
@@ -997,53 +1002,8 @@ func (ppu *RP2C02) renderVisibleScanline(frame uint64, scanline uint16, ticks ui
 			}
 		}
 
-		// sprite evaluation
-		if scanline != 261 {
-			switch {
-			case cycle == 0:
-				ppu.oam.DisableReads()
-			case cycle == 65:
-				ppu.oam.EnableReads()
-				fallthrough
-			case cycle >= 66 && cycle <= 256:
-				if cycle&0x001 == 0 {
-					value = ppu.oam.Fetch(address)
-				} else {
-					switch phase {
-					case 0:
-						if scanline-uint16(ppu.sprite(uint32(value), YPosition)) >=
-							uint16(ppu.controller(SpriteSize)) {
-
-						}
-
-						fallthrough
-					case 1:
-						fallthrough
-					case 2:
-						fallthrough
-					case 3:
-						ppu.secondaryOAM.Store(sprite+phase, value)
-						phase++
-					}
-
-					if phase == 4 {
-						address += 4
-
-						switch {
-						case address == 0x0100:
-							// done. goto 4
-						case sprite == 8:
-							ppu.secondaryOAM.DisableWrites()
-							fallthrough
-						default:
-							phase = 0
-						}
-					}
-
-				}
-			case cycle >= 257 && cycle <= 320:
-			case cycle >= 321 && cycle <= 340:
-			}
+		if ppu.oam.SpriteEvaluation(scanline, cycle, ppu.controller(SpriteSize)) {
+			ppu.Registers.Status |= uint8(SpriteOverflow)
 		}
 
 		ppu.clock.Await(ticks + cycle - skipped)
@@ -1082,9 +1042,13 @@ func (ppu *RP2C02) Run() (err error) {
 	scanline := POWERUP_SCANLINE
 
 	for frame := uint64(0); ; frame++ {
-		for ; scanline < NUM_SCANLINES; scanline = (scanline + 1) % NUM_SCANLINES {
+		// fmt.Printf("******** frame %v ********\n", frame)
+		for ; scanline < NUM_SCANLINES; scanline++ {
+			// fmt.Printf("---------- scanline %v ----------\n", scanline)
 			ppu.renderScanline(frame, scanline, ppu.clock.Ticks())
 		}
+
+		scanline = 0
 	}
 
 	return
