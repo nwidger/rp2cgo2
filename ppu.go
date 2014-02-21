@@ -478,9 +478,9 @@ func (ppu *RP2C02) incrementY() {
 		v += 0x1000 // increment fine Y
 	} else {
 		switch v & 0x03e0 {
-		case 0x3a0: // coarse Y = 29
+		case 0x03a0: // coarse Y = 29
 			v ^= 0x0800 // switch vertical nametable
-		case 0x3e0: // coarse Y = 31
+		case 0x03e0: // coarse Y = 31
 			v &= 0x73e0 // coarse Y = 0, nametable not switched
 		default:
 			v = (v & 0x0fff) + 0x0020 // increment coarse Y
@@ -704,7 +704,7 @@ func (ppu *RP2C02) renderVisibleScanline(frame uint64, scanline uint16, ticks ui
 					((ppu.Registers.Address & 0x2) | (ppu.Registers.Address >> 4 & 0x4))
 			}
 
-		// Low BG tile byte
+		// Low BG tile byte (color bit 0)
 		case 5:
 			fallthrough
 		case 13:
@@ -779,12 +779,11 @@ func (ppu *RP2C02) renderVisibleScanline(frame uint64, scanline uint16, ticks ui
 			//              6644 2200
 			if ppu.rendering() {
 				p := ppu.Memory.Fetch(patternAddress)
-
 				pattern[1] = p >> 0 & 0x55
 				pattern[0] = p >> 1 & 0x55
 			}
 
-		// High BG tile byte
+		// High BG tile byte (color bit 1)
 		case 7:
 			fallthrough
 		case 15:
@@ -859,7 +858,6 @@ func (ppu *RP2C02) renderVisibleScanline(frame uint64, scanline uint16, ticks ui
 			//              6644 2200
 			if ppu.rendering() {
 				p := ppu.Memory.Fetch(patternAddress | 0x0008)
-
 				pattern[0] = p << 0 & 0xaa
 				pattern[1] = p << 1 & 0xaa
 			}

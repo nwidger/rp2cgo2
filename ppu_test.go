@@ -689,3 +689,183 @@ func TestDataIncrement32(t *testing.T) {
 		t.Error("Memory is not 0xff")
 	}
 }
+
+func TestIncrementX(t *testing.T) {
+	divisor := uint64(4)
+	clock := m65go2.NewClock(1 * time.Nanosecond)
+	ppu := NewRP2C02(clock, divisor, nil, Horizontal)
+
+	ppu.Registers.Address = 0x0000
+	ppu.incrementX()
+
+	if ppu.Registers.Address != 0x0001 {
+		t.Error("Register is not 0x0001")
+	}
+
+	ppu.Registers.Address = 0x001e
+	ppu.incrementX()
+
+	if ppu.Registers.Address != 0x001f {
+		t.Error("Register is not 0x001f")
+	}
+
+	ppu.Registers.Address = 0x001f
+	ppu.incrementX()
+
+	if ppu.Registers.Address != 0x0400 {
+		t.Error("Register is not 0x0400")
+	}
+
+	ppu.Registers.Address = 0x041f
+	ppu.incrementX()
+
+	if ppu.Registers.Address != 0x0000 {
+		t.Error("Register is not 0x0000")
+	}
+}
+
+func TestTransferX(t *testing.T) {
+	divisor := uint64(4)
+	clock := m65go2.NewClock(1 * time.Nanosecond)
+	ppu := NewRP2C02(clock, divisor, nil, Horizontal)
+
+	ppu.Registers.Address = 0x7be0
+	ppu.latchAddress = 0x041f
+
+	ppu.transferX()
+
+	if ppu.Registers.Address != 0x7fff {
+		t.Error("Registers is not 0x7fff")
+	}
+
+	ppu.Registers.Address = 0x7be0
+	ppu.latchAddress = 0xffff
+
+	ppu.transferX()
+
+	if ppu.Registers.Address != 0x7fff {
+		t.Error("Registers is not 0x7fff")
+	}
+
+	ppu.Registers.Address = 0xffff
+	ppu.latchAddress = 0x0000
+
+	ppu.transferX()
+
+	if ppu.Registers.Address != 0x7be0 {
+		t.Error("Registers is not 0x7be0")
+	}
+
+	ppu.Registers.Address = 0x0000
+	ppu.latchAddress = 0xffff
+
+	ppu.transferX()
+
+	if ppu.Registers.Address != 0x041f {
+		t.Error("Registers is not 0x041f")
+	}
+}
+
+func TestIncrementY(t *testing.T) {
+	divisor := uint64(4)
+	clock := m65go2.NewClock(1 * time.Nanosecond)
+	ppu := NewRP2C02(clock, divisor, nil, Horizontal)
+
+	ppu.Registers.Address = 0x0000
+	ppu.incrementY()
+
+	if ppu.Registers.Address != 0x1000 {
+		t.Error("Register is not 0x1000")
+	}
+
+	ppu.Registers.Address = 0x1000
+	ppu.incrementY()
+
+	if ppu.Registers.Address != 0x2000 {
+		t.Error("Register is not 0x2000")
+	}
+
+	ppu.Registers.Address = 0x6000
+	ppu.incrementY()
+
+	if ppu.Registers.Address != 0x7000 {
+		t.Error("Register is not 0x7000")
+	}
+
+	ppu.Registers.Address = 0x7000
+	ppu.incrementY()
+
+	if ppu.Registers.Address != 0x0020 {
+		t.Error("Register is not 0x0020")
+	}
+
+	ppu.Registers.Address = 0x73d0
+	ppu.incrementY()
+
+	if ppu.Registers.Address != 0x03f0 {
+		t.Error("Register is not 0x03f0")
+	}
+
+	ppu.Registers.Address = 0x7fa0
+	ppu.incrementY()
+
+	if ppu.Registers.Address != 0x77a0 {
+		t.Error("Register is not 0x77a0")
+	}
+
+	ppu.Registers.Address = 0x73a0
+	ppu.incrementY()
+
+	if ppu.Registers.Address != 0x7ba0 {
+		t.Error("Register is not 0x7ba0")
+	}
+
+	ppu.Registers.Address = 0x73e1
+	ppu.incrementY()
+
+	if ppu.Registers.Address != 0x73e0 {
+		t.Error("Register is not 0x7be0")
+	}
+}
+
+func TestTransferY(t *testing.T) {
+	divisor := uint64(4)
+	clock := m65go2.NewClock(1 * time.Nanosecond)
+	ppu := NewRP2C02(clock, divisor, nil, Horizontal)
+
+	ppu.Registers.Address = 0x041f
+	ppu.latchAddress = 0x7be0
+
+	ppu.transferY()
+
+	if ppu.Registers.Address != 0x7fff {
+		t.Error("Registers is not 0x7fff")
+	}
+
+	ppu.Registers.Address = 0x041f
+	ppu.latchAddress = 0xffff
+
+	ppu.transferY()
+
+	if ppu.Registers.Address != 0x7fff {
+		t.Error("Registers is not 0x7fff")
+	}
+
+	ppu.Registers.Address = 0xffff
+	ppu.latchAddress = 0x0000
+
+	ppu.transferY()
+
+	if ppu.Registers.Address != 0x041f {
+		t.Error("Registers is not 0x041f")
+	}
+
+	ppu.Registers.Address = 0x0000
+	ppu.latchAddress = 0xffff
+
+	ppu.transferY()
+
+	if ppu.Registers.Address != 0x7be0 {
+		t.Error("Registers is not 0x7be0")
+	}
+}

@@ -1,7 +1,6 @@
 package rp2cgo2
 
 import (
-	_ "fmt"
 	"github.com/nwidger/m65go2"
 )
 
