@@ -1,6 +1,7 @@
 package rp2cgo2
 
 import (
+	"fmt"
 	"github.com/nwidger/m65go2"
 	"github.com/nwidger/rp2ago3"
 )
@@ -141,20 +142,18 @@ const (
 )
 
 type RP2C02 struct {
-	clock        *m65go2.Divider
+	clock        m65go2.Clocker
 	latch        bool
 	latchAddress uint16
 	Registers    Registers
 	Memory       *rp2ago3.MappedMemory
 	Interrupt    func(state bool)
 	oam          *OAM
+	frame        uint64
 	scanline     uint16
-	cycle        uint64
 }
 
-func NewRP2C02(clock m65go2.Clocker, divisor uint64, interrupt func(bool), mirroring Mirroring) *RP2C02 {
-	divider := m65go2.NewDivider(clock, divisor)
-
+func NewRP2C02(clock m65go2.Clocker, interrupt func(bool), mirroring Mirroring) *RP2C02 {
 	mem := rp2ago3.NewMappedMemory(m65go2.NewBasicMemory(m65go2.DEFAULT_MEMORY_SIZE))
 	mirrors := make(map[uint16]uint16)
 
@@ -198,7 +197,7 @@ func NewRP2C02(clock m65go2.Clocker, divisor uint64, interrupt func(bool), mirro
 	mem.AddMirrors(mirrors)
 
 	return &RP2C02{
-		clock:     divider,
+		clock:     clock,
 		Memory:    mem,
 		Interrupt: interrupt,
 		oam:       NewOAM(),
@@ -209,6 +208,9 @@ func (ppu *RP2C02) Reset() {
 	ppu.latch = false
 	ppu.Registers.Reset()
 	ppu.Memory.Reset()
+
+	ppu.frame = 0
+	ppu.scanline = POWERUP_SCANLINE
 }
 
 func (ppu *RP2C02) controller(flag ControllerFlag) (value uint16) {
@@ -370,11 +372,11 @@ func (ppu *RP2C02) Fetch(address uint16) (value uint8) {
 		vramAddress := ppu.Registers.Address & 0x3fff
 		ppu.Registers.Data = ppu.Memory.Fetch(vramAddress)
 
-		if vramAddress >= 0x3f00 {
+		if vramAddress&0x3f00 == 0x3f00 {
 			value = ppu.Registers.Data
 		}
 
-		ppu.Registers.Address += ppu.controller(VRAMAddressIncrement)
+		ppu.incrementAddress()
 	}
 
 	return
@@ -398,9 +400,11 @@ func (ppu *RP2C02) Store(address uint16, value uint8) (oldValue uint8) {
 		ppu.Registers.OAMAddress = value
 	// OAMData
 	case 0x2004:
-		oldValue = ppu.oam.Fetch(uint16(ppu.Registers.OAMAddress))
-		ppu.oam.Store(uint16(ppu.Registers.OAMAddress), value)
-		ppu.Registers.OAMAddress++
+		if !ppu.rendering() || ppu.scanline == 240 {
+			oldValue = ppu.oam.Fetch(uint16(ppu.Registers.OAMAddress))
+			ppu.oam.Store(uint16(ppu.Registers.OAMAddress), value)
+			ppu.Registers.OAMAddress++
+		}
 	// Scroll
 	case 0x2005:
 		if !ppu.latch {
@@ -432,7 +436,7 @@ func (ppu *RP2C02) Store(address uint16, value uint8) (oldValue uint8) {
 	case 0x2007:
 		oldValue = ppu.Registers.Data
 		ppu.Memory.Store(ppu.Registers.Address&0x3fff, value)
-		ppu.Registers.Address += ppu.controller(VRAMAddressIncrement)
+		ppu.incrementAddress()
 	}
 
 	return
@@ -477,17 +481,32 @@ func (ppu *RP2C02) incrementY() {
 	if (v & 0x7000) != 0x7000 { // if fine Y < 7
 		v += 0x1000 // increment fine Y
 	} else {
+		v &= 0x0fff
+
 		switch v & 0x03e0 {
 		case 0x03a0: // coarse Y = 29
 			v ^= 0x0800 // switch vertical nametable
 		case 0x03e0: // coarse Y = 31
-			v &= 0x73e0 // coarse Y = 0, nametable not switched
+			v &= 0x7c1f // coarse Y = 0, nametable not switched
 		default:
-			v = (v & 0x0fff) + 0x0020 // increment coarse Y
+			v += 0x0020 // increment coarse Y
 		}
 	}
 
 	ppu.Registers.Address = v
+}
+
+func (ppu *RP2C02) incrementAddress() {
+	if !ppu.rendering() || ppu.scanline == 240 {
+		ppu.Registers.Address =
+			(ppu.Registers.Address + ppu.controller(VRAMAddressIncrement)) & 0x7fff
+	} else {
+		if ppu.controller(VRAMAddressIncrement) == 32 {
+			ppu.incrementY()
+		} else {
+			ppu.Registers.Address++
+		}
+	}
 }
 
 func (ppu *RP2C02) rendering() bool {
@@ -515,7 +534,7 @@ func (ppu *RP2C02) fetchAttribute(address uint16) (value uint8) {
 	return
 }
 
-func (ppu *RP2C02) renderVisibleScanline(frame uint64, scanline uint16, ticks uint64) (cycles uint64) {
+func (ppu *RP2C02) renderVisibleScanline(ticks uint64) (cycles uint64) {
 	skipped := uint64(0)
 	cycles = CYCLES_PER_SCANLINE
 
@@ -531,14 +550,14 @@ func (ppu *RP2C02) renderVisibleScanline(frame uint64, scanline uint16, ticks ui
 		switch cycle {
 		// skipped on BG+odd
 		case 0:
-			if scanline == 0 && ppu.rendering() && frame&0x1 != 0 {
+			if ppu.scanline == 0 && ppu.rendering() && ppu.frame&0x1 != 0 {
 				cycles--
 				skipped = 1
 			}
 
 		// NT byte
 		case 1:
-			if scanline == 261 {
+			if ppu.scanline == 261 {
 				ppu.Registers.Status &^= uint8(VBlankStarted | Sprite0Hit | SpriteOverflow)
 			}
 
@@ -994,12 +1013,12 @@ func (ppu *RP2C02) renderVisibleScanline(frame uint64, scanline uint16, ticks ui
 		case 303:
 			fallthrough
 		case 304:
-			if scanline == 261 && ppu.rendering() {
+			if ppu.scanline == 261 && ppu.rendering() {
 				ppu.transferY()
 			}
 		}
 
-		if ppu.oam.SpriteEvaluation(scanline, cycle, ppu.controller(SpriteSize)) {
+		if ppu.oam.SpriteEvaluation(ppu.scanline, cycle, ppu.controller(SpriteSize)) {
 			ppu.Registers.Status |= uint8(SpriteOverflow)
 		}
 
@@ -1009,16 +1028,17 @@ func (ppu *RP2C02) renderVisibleScanline(frame uint64, scanline uint16, ticks ui
 	return
 }
 
-func (ppu *RP2C02) renderScanline(frame uint64, scanline uint16, ticks uint64) (cycles uint64) {
+func (ppu *RP2C02) renderScanline() (cycles uint64) {
+	ticks := ppu.clock.Ticks()
 	cycles = CYCLES_PER_SCANLINE
 
 	switch {
 	// visible scanlines (0-239), post-render scanline (240), pre-render scanline (261)
-	case scanline < 241 || scanline > 260:
-		cycles = ppu.renderVisibleScanline(frame, scanline, ticks)
+	case ppu.scanline < 241 || ppu.scanline > 260:
+		cycles = ppu.renderVisibleScanline(ticks)
 	// vertical blanking scanlines (241-260)
 	default:
-		if scanline == 241 {
+		if ppu.scanline == 241 {
 			ppu.clock.Await(ticks + 1)
 			ppu.Registers.Status |= uint8(VBlankStarted)
 
@@ -1036,16 +1056,15 @@ func (ppu *RP2C02) renderScanline(frame uint64, scanline uint16, ticks uint64) (
 }
 
 func (ppu *RP2C02) Run() (err error) {
-	scanline := POWERUP_SCANLINE
-
-	for frame := uint64(0); ; frame++ {
-		// fmt.Printf("******** frame %v ********\n", frame)
-		for ; scanline < NUM_SCANLINES; scanline++ {
+	for {
+		fmt.Printf("******** frame %v ********\n", ppu.frame)
+		for ; ppu.scanline < NUM_SCANLINES; ppu.scanline++ {
 			// fmt.Printf("---------- scanline %v ----------\n", scanline)
-			ppu.renderScanline(frame, scanline, ppu.clock.Ticks())
+			ppu.renderScanline()
 		}
 
-		scanline = 0
+		ppu.scanline = 0
+		ppu.frame++
 	}
 
 	return

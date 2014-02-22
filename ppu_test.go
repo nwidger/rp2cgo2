@@ -809,22 +809,22 @@ func TestIncrementY(t *testing.T) {
 	ppu.Registers.Address = 0x7fa0
 	ppu.incrementY()
 
-	if ppu.Registers.Address != 0x77a0 {
-		t.Error("Register is not 0x77a0")
+	if ppu.Registers.Address != 0x07a0 {
+		t.Error("Register is not 0x07a0")
 	}
 
 	ppu.Registers.Address = 0x73a0
 	ppu.incrementY()
 
-	if ppu.Registers.Address != 0x7ba0 {
-		t.Error("Register is not 0x7ba0")
+	if ppu.Registers.Address != 0x0ba0 {
+		t.Error("Register is not 0x0ba0")
 	}
 
 	ppu.Registers.Address = 0x73e1
 	ppu.incrementY()
 
-	if ppu.Registers.Address != 0x73e0 {
-		t.Error("Register is not 0x7be0")
+	if ppu.Registers.Address != 0x0001 {
+		t.Error("Register is not 0x0001")
 	}
 }
 
