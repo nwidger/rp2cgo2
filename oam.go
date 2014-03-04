@@ -1,8 +1,6 @@
 package rp2cgo2
 
-import (
-	"github.com/nwidger/m65go2"
-)
+import "github.com/nwidger/m65go2"
 
 type OAM struct {
 	*m65go2.BasicMemory
@@ -21,6 +19,15 @@ func NewOAM() *OAM {
 		readCycle:   fetchAddress,
 		writeCycle:  failCopyYPosition,
 	}
+}
+
+func (oam *OAM) Sprite(index uint8) uint32 {
+	address := uint16(index) << 2
+
+	return (uint32(oam.buffer.Fetch(address))<<24 |
+		uint32(oam.buffer.Fetch(address+1))<<16 |
+		uint32(oam.buffer.Fetch(address+2))<<8 |
+		uint32(oam.buffer.Fetch(address+3)))
 }
 
 func (oam *OAM) SpriteEvaluation(scanline uint16, cycle uint64, size uint16) (spriteOverflow bool) {

@@ -523,3 +523,43 @@ func TestSpriteOverflowSet2(t *testing.T) {
 		t.Error("SpriteOverflow not set")
 	}
 }
+
+func TestOAMSprite(t *testing.T) {
+	oam := NewOAM()
+
+	address := uint16(0)
+
+	address = 0x0000
+
+	oam.buffer.Store(address+0, 0x00)
+	oam.buffer.Store(address+1, 0x01)
+	oam.buffer.Store(address+2, 0x02)
+	oam.buffer.Store(address+3, 0x03)
+
+	if oam.Sprite(0) != 0x00010203 {
+		t.Error("Sprite is not 0x00010203")
+	}
+
+	address = 0x0004
+
+	oam.buffer.Store(address+0, 0x04)
+	oam.buffer.Store(address+1, 0x05)
+	oam.buffer.Store(address+2, 0x06)
+	oam.buffer.Store(address+3, 0x07)
+
+	if oam.Sprite(1) != 0x04050607 {
+		t.Error("Sprite is not 0x04050607")
+	}
+
+	address = 0x001c
+
+	oam.buffer.Store(address+0, 0xfc)
+	oam.buffer.Store(address+1, 0xfd)
+	oam.buffer.Store(address+2, 0xfe)
+	oam.buffer.Store(address+3, 0xff)
+
+	if oam.Sprite(7) != 0xfcfdfeff {
+		t.Error("Sprite is not 0xfcfdfeff")
+	}
+
+}

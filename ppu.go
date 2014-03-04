@@ -1,7 +1,14 @@
 package rp2cgo2
 
 import (
+	"bufio"
 	"fmt"
+	"image"
+	"image/color"
+	"os"
+
+	"image/jpeg"
+
 	"github.com/nwidger/m65go2"
 	"github.com/nwidger/rp2ago3"
 )
@@ -142,15 +149,19 @@ const (
 )
 
 type RP2C02 struct {
-	clock        m65go2.Clocker
-	latch        bool
-	latchAddress uint16
-	Registers    Registers
-	Memory       *rp2ago3.MappedMemory
-	Interrupt    func(state bool)
-	oam          *OAM
-	frame        uint64
-	scanline     uint16
+	clock          m65go2.Clocker
+	latch          bool
+	latchAddress   uint16
+	Registers      Registers
+	Memory         *rp2ago3.MappedMemory
+	Interrupt      func(state bool)
+	oam            *OAM
+	frame          uint64
+	scanline       uint16
+	patternAddress uint16
+	attribute      uint8
+	tileLow        uint16
+	tileHigh       uint16
 }
 
 func NewRP2C02(clock m65go2.Clocker, interrupt func(bool), mirroring Mirroring) *RP2C02 {
@@ -534,16 +545,78 @@ func (ppu *RP2C02) fetchAttribute(address uint16) (value uint8) {
 	return
 }
 
+var img *image.RGBA
+
+var rgba = []color.RGBA{
+	color.RGBA{84, 84, 84, 255},
+	color.RGBA{0, 30, 116, 255},
+	color.RGBA{8, 16, 144, 255},
+	color.RGBA{48, 0, 136, 255},
+	color.RGBA{68, 0, 100, 255},
+	color.RGBA{92, 0, 48, 255},
+	color.RGBA{84, 4, 0, 255},
+	color.RGBA{60, 24, 0, 255},
+	color.RGBA{32, 42, 0, 255},
+	color.RGBA{8, 58, 0, 255},
+	color.RGBA{0, 64, 0, 255},
+	color.RGBA{0, 60, 0, 255},
+	color.RGBA{0, 50, 60, 255},
+	color.RGBA{0, 0, 0, 255},
+	color.RGBA{0, 0, 0, 255},
+	color.RGBA{0, 0, 0, 255},
+	color.RGBA{152, 150, 152, 255},
+	color.RGBA{8, 76, 196, 255},
+	color.RGBA{48, 50, 236, 255},
+	color.RGBA{92, 30, 228, 255},
+	color.RGBA{136, 20, 176, 255},
+	color.RGBA{160, 20, 100, 255},
+	color.RGBA{152, 34, 32, 255},
+	color.RGBA{120, 60, 0, 255},
+	color.RGBA{84, 90, 0, 255},
+	color.RGBA{40, 114, 0, 255},
+	color.RGBA{8, 124, 0, 255},
+	color.RGBA{0, 118, 40, 255},
+	color.RGBA{0, 102, 120, 255},
+	color.RGBA{0, 0, 0, 255},
+	color.RGBA{0, 0, 0, 255},
+	color.RGBA{0, 0, 0, 255},
+	color.RGBA{236, 238, 236, 255},
+	color.RGBA{76, 154, 236, 255},
+	color.RGBA{120, 124, 236, 255},
+	color.RGBA{176, 98, 236, 255},
+	color.RGBA{228, 84, 236, 255},
+	color.RGBA{236, 88, 180, 255},
+	color.RGBA{236, 106, 100, 255},
+	color.RGBA{212, 136, 32, 255},
+	color.RGBA{160, 170, 0, 255},
+	color.RGBA{116, 196, 0, 255},
+	color.RGBA{76, 208, 32, 255},
+	color.RGBA{56, 204, 108, 255},
+	color.RGBA{56, 180, 204, 255},
+	color.RGBA{60, 60, 60, 255},
+	color.RGBA{0, 0, 0, 255},
+	color.RGBA{0, 0, 0, 255},
+	color.RGBA{236, 238, 236, 255},
+	color.RGBA{168, 204, 236, 255},
+	color.RGBA{188, 188, 236, 255},
+	color.RGBA{212, 178, 236, 255},
+	color.RGBA{236, 174, 236, 255},
+	color.RGBA{236, 174, 212, 255},
+	color.RGBA{236, 180, 176, 255},
+	color.RGBA{228, 196, 144, 255},
+	color.RGBA{204, 210, 120, 255},
+	color.RGBA{180, 222, 120, 255},
+	color.RGBA{168, 226, 144, 255},
+	color.RGBA{152, 226, 180, 255},
+	color.RGBA{160, 214, 228, 255},
+	color.RGBA{160, 162, 160, 255},
+	color.RGBA{0, 0, 0, 255},
+	color.RGBA{0, 0, 0, 255},
+}
+
 func (ppu *RP2C02) renderVisibleScanline(ticks uint64) (cycles uint64) {
 	skipped := uint64(0)
 	cycles = CYCLES_PER_SCANLINE
-
-	patternAddress := uint16(0)
-	pattern := [2]uint8{0, 0}
-	attribute := uint8(0)
-
-	_ = attribute
-	_ = pattern
 
 	for cycle := uint64(0); cycle < CYCLES_PER_SCANLINE; cycle++ {
 		// fmt.Printf("======== cycle %v ========\n", cycle)
@@ -633,7 +706,7 @@ func (ppu *RP2C02) renderVisibleScanline(ticks uint64) (cycles uint64) {
 		case 339:
 			// 000p NNNN NNNN vvvv
 			if ppu.rendering() {
-				patternAddress = ppu.controller(SpritePatternAddress) |
+				ppu.patternAddress = ppu.controller(BackgroundPatternAddress) |
 					uint16(ppu.fetchName(ppu.Registers.Address))<<4 |
 					ppu.address(FineYScroll)
 			}
@@ -713,14 +786,14 @@ func (ppu *RP2C02) renderVisibleScanline(ticks uint64) (cycles uint64) {
 			//
 			// v: .yyy NNYY YYYX XXXX|
 			//    .... .... .... ..X.|
-			// v >> 4: .... .... .Y..|....
+			// v >> 4: .... .>>> >Y..|....
 			//         .X. = 000 = 0
 			//         Y..   010 = 2
 			//               100 = 4
 			//               110 = 6
 			if ppu.rendering() {
-				attribute = ppu.fetchAttribute(ppu.Registers.Address) >>
-					((ppu.Registers.Address & 0x2) | (ppu.Registers.Address >> 4 & 0x4))
+				ppu.attribute = (ppu.fetchAttribute(ppu.Registers.Address) >>
+					((ppu.Registers.Address & 0x2) | (ppu.Registers.Address >> 4 & 0x4))) & 0x03
 			}
 
 		// Low BG tile byte (color bit 0)
@@ -791,15 +864,9 @@ func (ppu *RP2C02) renderVisibleScanline(ticks uint64) (cycles uint64) {
 		case 325:
 			fallthrough
 		case 333:
-			// pattern[0] = HLHL HLHL
-			//              7755 3311
-			//
-			// pattern[1] = HLHL HLHL
-			//              6644 2200
 			if ppu.rendering() {
-				p := ppu.Memory.Fetch(patternAddress)
-				pattern[1] = p >> 0 & 0x55
-				pattern[0] = p >> 1 & 0x55
+				// Fetch color bit 0 for next 8 dots
+				ppu.tileLow = (ppu.tileLow & 0x00ff) | (uint16(ppu.Memory.Fetch(ppu.patternAddress)) << 8)
 			}
 
 		// High BG tile byte (color bit 1)
@@ -870,15 +937,9 @@ func (ppu *RP2C02) renderVisibleScanline(ticks uint64) (cycles uint64) {
 		case 327:
 			fallthrough
 		case 335:
-			// pattern[0] = HLHL HLHL
-			//              7755 3311
-			//
-			// pattern[1] = HLHL HLHL
-			//              6644 2200
 			if ppu.rendering() {
-				p := ppu.Memory.Fetch(patternAddress | 0x0008)
-				pattern[0] = p << 0 & 0xaa
-				pattern[1] = p << 1 & 0xaa
+				// Fetch color bit 1 for next 8 dots
+				ppu.tileHigh = (ppu.tileHigh & 0x00ff) | (uint16(ppu.Memory.Fetch(ppu.patternAddress|0x0008)) << 8)
 			}
 
 		// inc hori(v)
@@ -1018,8 +1079,21 @@ func (ppu *RP2C02) renderVisibleScanline(ticks uint64) (cycles uint64) {
 			}
 		}
 
-		if ppu.oam.SpriteEvaluation(ppu.scanline, cycle, ppu.controller(SpriteSize)) {
-			ppu.Registers.Status |= uint8(SpriteOverflow)
+		if cycle >= 1 && cycle <= 256 {
+			current := uint16(((cycles - 1) + uint64(ppu.Registers.Scroll)) & 15)
+			index := (((ppu.tileHigh >> current) & 0x0001) << 1) | (ppu.tileLow>>current)&0x0001
+
+			color := rgba[ppu.Memory.Fetch(0x3f00|(uint16(ppu.attribute)<<2)|index)]
+
+			if ppu.rendering() && ppu.scanline >= 0 && ppu.scanline <= 239 {
+				img.Set(int(cycle-1), int(ppu.scanline), color)
+			}
+
+			ppu.tileLow, ppu.tileHigh = ppu.tileLow>>1, ppu.tileHigh>>1
+
+			if ppu.oam.SpriteEvaluation(ppu.scanline, cycle, ppu.controller(SpriteSize)) {
+				ppu.Registers.Status |= uint8(SpriteOverflow)
+			}
 		}
 
 		ppu.clock.Await(ticks + cycle - skipped)
@@ -1055,17 +1129,23 @@ func (ppu *RP2C02) renderScanline() (cycles uint64) {
 	return
 }
 
-func (ppu *RP2C02) Run() (err error) {
+func (ppu *RP2C02) Run() {
+	img = image.NewRGBA(image.Rect(0, 0, 256, 240))
+
 	for {
 		fmt.Printf("******** frame %v ********\n", ppu.frame)
+
 		for ; ppu.scanline < NUM_SCANLINES; ppu.scanline++ {
-			// fmt.Printf("---------- scanline %v ----------\n", scanline)
 			ppu.renderScanline()
+		}
+
+		if ppu.rendering() {
+			fo, _ := os.Create(fmt.Sprintf("frame.jpg"))
+			w := bufio.NewWriter(fo)
+			jpeg.Encode(w, img, nil)
 		}
 
 		ppu.scanline = 0
 		ppu.frame++
 	}
-
-	return
 }
