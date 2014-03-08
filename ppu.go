@@ -159,9 +159,10 @@ type RP2C02 struct {
 	frame          uint64
 	scanline       uint16
 	patternAddress uint16
-	attribute      uint8
-	tileLow        uint16
-	tileHigh       uint16
+	attributeLatch uint8
+	attributes     uint16
+	tilesLow       uint16
+	tilesHigh      uint16
 }
 
 func NewRP2C02(clock m65go2.Clocker, interrupt func(bool), mirroring Mirroring) *RP2C02 {
@@ -792,7 +793,7 @@ func (ppu *RP2C02) renderVisibleScanline(ticks uint64) (cycles uint64) {
 			//               100 = 4
 			//               110 = 6
 			if ppu.rendering() {
-				ppu.attribute = (ppu.fetchAttribute(ppu.Registers.Address) >>
+				ppu.attributeLatch = (ppu.fetchAttribute(ppu.Registers.Address) >>
 					((ppu.Registers.Address & 0x2) | (ppu.Registers.Address >> 4 & 0x4))) & 0x03
 			}
 
@@ -866,7 +867,7 @@ func (ppu *RP2C02) renderVisibleScanline(ticks uint64) (cycles uint64) {
 		case 333:
 			if ppu.rendering() {
 				// Fetch color bit 0 for next 8 dots
-				ppu.tileLow = (ppu.tileLow & 0x00ff) | (uint16(ppu.Memory.Fetch(ppu.patternAddress)) << 8)
+				ppu.tilesLow = (ppu.tilesLow & 0xff00) | uint16(ppu.Memory.Fetch(ppu.patternAddress))
 			}
 
 		// High BG tile byte (color bit 1)
@@ -939,7 +940,7 @@ func (ppu *RP2C02) renderVisibleScanline(ticks uint64) (cycles uint64) {
 		case 335:
 			if ppu.rendering() {
 				// Fetch color bit 1 for next 8 dots
-				ppu.tileHigh = (ppu.tileHigh & 0x00ff) | (uint16(ppu.Memory.Fetch(ppu.patternAddress|0x0008)) << 8)
+				ppu.tilesHigh = (ppu.tilesHigh & 0xff00) | uint16(ppu.Memory.Fetch(ppu.patternAddress|0x0008))
 			}
 
 		// inc hori(v)
@@ -1080,20 +1081,33 @@ func (ppu *RP2C02) renderVisibleScanline(ticks uint64) (cycles uint64) {
 		}
 
 		if cycle >= 1 && cycle <= 256 {
-			current := uint16(((cycles - 1) + uint64(ppu.Registers.Scroll)) & 15)
-			index := (((ppu.tileHigh >> current) & 0x0001) << 1) | (ppu.tileLow>>current)&0x0001
+			index := uint16(0)
+			attribute := uint16(0)
 
-			color := rgba[ppu.Memory.Fetch(0x3f00|(uint16(ppu.attribute)<<2)|index)]
+			if ppu.mask(ShowBackground) {
+				scroll := 15 - ppu.Registers.Scroll
+				index = (((ppu.tilesHigh >> scroll) & 0x0001) << 1) | ((ppu.tilesLow >> scroll) & 0x0001)
+
+				if index != 0 {
+					attribute = uint16((ppu.attributes>>(ppu.Registers.Scroll*2))&0x0003) << 2
+				}
+			}
+
+			color := rgba[ppu.Memory.Fetch(0x3f00|attribute|index)]
 
 			if ppu.rendering() && ppu.scanline >= 0 && ppu.scanline <= 239 {
 				img.Set(int(cycle-1), int(ppu.scanline), color)
 			}
 
-			ppu.tileLow, ppu.tileHigh = ppu.tileLow>>1, ppu.tileHigh>>1
-
 			if ppu.oam.SpriteEvaluation(ppu.scanline, cycle, ppu.controller(SpriteSize)) {
 				ppu.Registers.Status |= uint8(SpriteOverflow)
 			}
+		}
+
+		if (cycle >= 2 && cycle <= 257) || (cycle >= 322 && cycle <= 337) {
+			ppu.tilesLow <<= 1
+			ppu.tilesHigh <<= 1
+			ppu.attributes = (ppu.attributes << 2) | uint16(ppu.attributeLatch)
 		}
 
 		ppu.clock.Await(ticks + cycle - skipped)
@@ -1136,8 +1150,14 @@ func (ppu *RP2C02) Run() {
 		fmt.Printf("******** frame %v ********\n", ppu.frame)
 
 		for ; ppu.scanline < NUM_SCANLINES; ppu.scanline++ {
+			if ppu.scanline == 8 {
+				ppu.Registers.Status |= uint8(Sprite0Hit)
+			}
+
 			ppu.renderScanline()
 		}
+
+		ppu.Registers.Status &^= uint8(Sprite0Hit)
 
 		if ppu.rendering() {
 			fo, _ := os.Create(fmt.Sprintf("frame.jpg"))
