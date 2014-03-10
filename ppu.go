@@ -549,70 +549,70 @@ func (ppu *RP2C02) fetchAttribute(address uint16) (value uint8) {
 var img *image.RGBA
 
 var rgba = []color.RGBA{
-	color.RGBA{84, 84, 84, 255},
-	color.RGBA{0, 30, 116, 255},
-	color.RGBA{8, 16, 144, 255},
-	color.RGBA{48, 0, 136, 255},
-	color.RGBA{68, 0, 100, 255},
-	color.RGBA{92, 0, 48, 255},
-	color.RGBA{84, 4, 0, 255},
-	color.RGBA{60, 24, 0, 255},
-	color.RGBA{32, 42, 0, 255},
-	color.RGBA{8, 58, 0, 255},
-	color.RGBA{0, 64, 0, 255},
-	color.RGBA{0, 60, 0, 255},
-	color.RGBA{0, 50, 60, 255},
-	color.RGBA{0, 0, 0, 255},
-	color.RGBA{0, 0, 0, 255},
-	color.RGBA{0, 0, 0, 255},
-	color.RGBA{152, 150, 152, 255},
-	color.RGBA{8, 76, 196, 255},
-	color.RGBA{48, 50, 236, 255},
-	color.RGBA{92, 30, 228, 255},
-	color.RGBA{136, 20, 176, 255},
-	color.RGBA{160, 20, 100, 255},
-	color.RGBA{152, 34, 32, 255},
-	color.RGBA{120, 60, 0, 255},
-	color.RGBA{84, 90, 0, 255},
-	color.RGBA{40, 114, 0, 255},
-	color.RGBA{8, 124, 0, 255},
-	color.RGBA{0, 118, 40, 255},
-	color.RGBA{0, 102, 120, 255},
-	color.RGBA{0, 0, 0, 255},
-	color.RGBA{0, 0, 0, 255},
-	color.RGBA{0, 0, 0, 255},
-	color.RGBA{236, 238, 236, 255},
-	color.RGBA{76, 154, 236, 255},
-	color.RGBA{120, 124, 236, 255},
-	color.RGBA{176, 98, 236, 255},
-	color.RGBA{228, 84, 236, 255},
-	color.RGBA{236, 88, 180, 255},
-	color.RGBA{236, 106, 100, 255},
-	color.RGBA{212, 136, 32, 255},
-	color.RGBA{160, 170, 0, 255},
-	color.RGBA{116, 196, 0, 255},
-	color.RGBA{76, 208, 32, 255},
-	color.RGBA{56, 204, 108, 255},
-	color.RGBA{56, 180, 204, 255},
-	color.RGBA{60, 60, 60, 255},
-	color.RGBA{0, 0, 0, 255},
-	color.RGBA{0, 0, 0, 255},
-	color.RGBA{236, 238, 236, 255},
-	color.RGBA{168, 204, 236, 255},
-	color.RGBA{188, 188, 236, 255},
-	color.RGBA{212, 178, 236, 255},
-	color.RGBA{236, 174, 236, 255},
-	color.RGBA{236, 174, 212, 255},
-	color.RGBA{236, 180, 176, 255},
-	color.RGBA{228, 196, 144, 255},
-	color.RGBA{204, 210, 120, 255},
-	color.RGBA{180, 222, 120, 255},
-	color.RGBA{168, 226, 144, 255},
-	color.RGBA{152, 226, 180, 255},
-	color.RGBA{160, 214, 228, 255},
-	color.RGBA{160, 162, 160, 255},
-	color.RGBA{0, 0, 0, 255},
-	color.RGBA{0, 0, 0, 255},
+	color.RGBA{0x66, 0x66, 0x66, 0xff},
+	color.RGBA{0x00, 0x2A, 0x88, 0xff},
+	color.RGBA{0x14, 0x12, 0xA7, 0xff},
+	color.RGBA{0x3B, 0x00, 0xA4, 0xff},
+	color.RGBA{0x5C, 0x00, 0x7E, 0xff},
+	color.RGBA{0x6E, 0x00, 0x40, 0xff},
+	color.RGBA{0x6C, 0x06, 0x00, 0xff},
+	color.RGBA{0x56, 0x1D, 0x00, 0xff},
+	color.RGBA{0x33, 0x35, 0x00, 0xff},
+	color.RGBA{0x0B, 0x48, 0x00, 0xff},
+	color.RGBA{0x00, 0x52, 0x00, 0xff},
+	color.RGBA{0x00, 0x4F, 0x08, 0xff},
+	color.RGBA{0x00, 0x40, 0x4D, 0xff},
+	color.RGBA{0x00, 0x00, 0x00, 0xff},
+	color.RGBA{0x00, 0x00, 0x00, 0xff},
+	color.RGBA{0x00, 0x00, 0x00, 0xff},
+	color.RGBA{0xAD, 0xAD, 0xAD, 0xff},
+	color.RGBA{0x15, 0x5F, 0xD9, 0xff},
+	color.RGBA{0x42, 0x40, 0xFF, 0xff},
+	color.RGBA{0x75, 0x27, 0xFE, 0xff},
+	color.RGBA{0xA0, 0x1A, 0xCC, 0xff},
+	color.RGBA{0xB7, 0x1E, 0x7B, 0xff},
+	color.RGBA{0xB5, 0x31, 0x20, 0xff},
+	color.RGBA{0x99, 0x4E, 0x00, 0xff},
+	color.RGBA{0x6B, 0x6D, 0x00, 0xff},
+	color.RGBA{0x38, 0x87, 0x00, 0xff},
+	color.RGBA{0x0C, 0x93, 0x00, 0xff},
+	color.RGBA{0x00, 0x8F, 0x32, 0xff},
+	color.RGBA{0x00, 0x7C, 0x8D, 0xff},
+	color.RGBA{0x00, 0x00, 0x00, 0xff},
+	color.RGBA{0x00, 0x00, 0x00, 0xff},
+	color.RGBA{0x00, 0x00, 0x00, 0xff},
+	color.RGBA{0xFF, 0xFE, 0xFF, 0xff},
+	color.RGBA{0x64, 0xB0, 0xFF, 0xff},
+	color.RGBA{0x92, 0x90, 0xFF, 0xff},
+	color.RGBA{0xC6, 0x76, 0xFF, 0xff},
+	color.RGBA{0xF3, 0x6A, 0xFF, 0xff},
+	color.RGBA{0xFE, 0x6E, 0xCC, 0xff},
+	color.RGBA{0xFE, 0x81, 0x70, 0xff},
+	color.RGBA{0xEA, 0x9E, 0x22, 0xff},
+	color.RGBA{0xBC, 0xBE, 0x00, 0xff},
+	color.RGBA{0x88, 0xD8, 0x00, 0xff},
+	color.RGBA{0x5C, 0xE4, 0x30, 0xff},
+	color.RGBA{0x45, 0xE0, 0x82, 0xff},
+	color.RGBA{0x48, 0xCD, 0xDE, 0xff},
+	color.RGBA{0x4F, 0x4F, 0x4F, 0xff},
+	color.RGBA{0x00, 0x00, 0x00, 0xff},
+	color.RGBA{0x00, 0x00, 0x00, 0xff},
+	color.RGBA{0xFF, 0xFE, 0xFF, 0xff},
+	color.RGBA{0xC0, 0xDF, 0xFF, 0xff},
+	color.RGBA{0xD3, 0xD2, 0xFF, 0xff},
+	color.RGBA{0xE8, 0xC8, 0xFF, 0xff},
+	color.RGBA{0xFB, 0xC2, 0xFF, 0xff},
+	color.RGBA{0xFE, 0xC4, 0xEA, 0xff},
+	color.RGBA{0xFE, 0xCC, 0xC5, 0xff},
+	color.RGBA{0xF7, 0xD8, 0xA5, 0xff},
+	color.RGBA{0xE4, 0xE5, 0x94, 0xff},
+	color.RGBA{0xCF, 0xEF, 0x96, 0xff},
+	color.RGBA{0xBD, 0xF4, 0xAB, 0xff},
+	color.RGBA{0xB3, 0xF3, 0xCC, 0xff},
+	color.RGBA{0xB5, 0xEB, 0xF2, 0xff},
+	color.RGBA{0xB8, 0xB8, 0xB8, 0xff},
+	color.RGBA{0x00, 0x00, 0x00, 0xff},
+	color.RGBA{0x00, 0x00, 0x00, 0xff},
 }
 
 func (ppu *RP2C02) renderVisibleScanline(ticks uint64) (cycles uint64) {
@@ -1084,12 +1084,12 @@ func (ppu *RP2C02) renderVisibleScanline(ticks uint64) (cycles uint64) {
 			index := uint16(0)
 			attribute := uint16(0)
 
-			if ppu.mask(ShowBackground) {
-				scroll := 15 - ppu.Registers.Scroll
+			if ppu.mask(ShowBackground) && (ppu.mask(ShowBackgroundLeft) || cycle > 8) {
+				scroll := 15 - uint16((cycles-1)&7) - ppu.Registers.Scroll
 				index = (((ppu.tilesHigh >> scroll) & 0x0001) << 1) | ((ppu.tilesLow >> scroll) & 0x0001)
 
 				if index != 0 {
-					attribute = uint16((ppu.attributes>>(ppu.Registers.Scroll*2))&0x0003) << 2
+					attribute = uint16((ppu.attributes)&0x0003) << 2
 				}
 			}
 
@@ -1107,7 +1107,7 @@ func (ppu *RP2C02) renderVisibleScanline(ticks uint64) (cycles uint64) {
 		if (cycle >= 2 && cycle <= 257) || (cycle >= 322 && cycle <= 337) {
 			ppu.tilesLow <<= 1
 			ppu.tilesHigh <<= 1
-			ppu.attributes = (ppu.attributes << 2) | uint16(ppu.attributeLatch)
+			ppu.attributes = (ppu.attributes >> 2) | (uint16(ppu.attributeLatch) << 14)
 		}
 
 		ppu.clock.Await(ticks + cycle - skipped)
@@ -1143,11 +1143,67 @@ func (ppu *RP2C02) renderScanline() (cycles uint64) {
 	return
 }
 
+func (ppu *RP2C02) dumpPatternTables() {
+	left := image.NewRGBA(image.Rect(0, 0, 128, 128))
+	right := image.NewRGBA(image.Rect(0, 0, 128, 128))
+
+	colors := [4]color.RGBA{
+		color.RGBA{0, 0, 0, 255},
+		color.RGBA{203, 79, 15, 255},
+		color.RGBA{255, 155, 59, 255},
+		color.RGBA{255, 231, 163, 255},
+	}
+
+	x_base := 0
+	y_base := 0
+
+	ptimg := left
+
+	for address := uint16(0x0000); address <= 0x1fff; address += 0x0010 {
+		if address < 0x1000 {
+			ptimg = left
+		} else {
+			ptimg = right
+		}
+
+		for row := uint16(0); row <= 7; row++ {
+			low := ppu.Memory.Fetch(address + row)
+			high := ppu.Memory.Fetch(address + row + 8)
+
+			for i := int16(7); i >= 0; i-- {
+				b := ((low >> uint16(i)) & 0x0001) | (((high >> uint16(i)) & 0x0001) << 1)
+				ptimg.Set(x_base+(8-int(i+1)), y_base+int(row), colors[b])
+			}
+		}
+
+		x_base += 8
+
+		if x_base == 128 {
+			x_base = 0
+			y_base = (y_base + 8) % 128
+		}
+	}
+
+	fo, _ := os.Create(fmt.Sprintf("left.jpg"))
+	w := bufio.NewWriter(fo)
+	jpeg.Encode(w, left, &jpeg.Options{Quality: 100})
+	fo.Close()
+
+	fo, _ = os.Create(fmt.Sprintf("right.jpg"))
+	w = bufio.NewWriter(fo)
+	jpeg.Encode(w, right, &jpeg.Options{Quality: 100})
+	fo.Close()
+}
+
 func (ppu *RP2C02) Run() {
+	ppu.dumpPatternTables()
 	img = image.NewRGBA(image.Rect(0, 0, 256, 240))
 
 	for {
 		fmt.Printf("******** frame %v ********\n", ppu.frame)
+		if ppu.mask(ShowBackgroundLeft) {
+
+		}
 
 		for ; ppu.scanline < NUM_SCANLINES; ppu.scanline++ {
 			if ppu.scanline == 8 {
@@ -1162,7 +1218,7 @@ func (ppu *RP2C02) Run() {
 		if ppu.rendering() {
 			fo, _ := os.Create(fmt.Sprintf("frame.jpg"))
 			w := bufio.NewWriter(fo)
-			jpeg.Encode(w, img, nil)
+			jpeg.Encode(w, img, &jpeg.Options{Quality: 100})
 		}
 
 		ppu.scanline = 0
