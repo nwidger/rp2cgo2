@@ -159,6 +159,7 @@ type RP2C02 struct {
 	patternAddress uint16
 	attributeLatch uint8
 	attributes     uint16
+	tilesLatch     uint16
 	tilesLow       uint16
 	tilesHigh      uint16
 }
@@ -639,6 +640,9 @@ func (ppu *RP2C02) renderVisibleScanline(ticks uint64) (cycles uint64) {
 		case 339:
 			// 000p NNNN NNNN vvvv
 			if ppu.rendering() {
+				ppu.tilesLow = (ppu.tilesLow & 0xff00) | (ppu.tilesLatch & 0x00ff)
+				ppu.tilesHigh = (ppu.tilesHigh & 0xff00) | ((ppu.tilesLatch >> 8) & 0x00ff)
+
 				ppu.patternAddress = ppu.controller(BackgroundPatternAddress) |
 					uint16(ppu.fetchName(ppu.Registers.Address))<<4 |
 					ppu.address(FineYScroll)
@@ -799,7 +803,7 @@ func (ppu *RP2C02) renderVisibleScanline(ticks uint64) (cycles uint64) {
 		case 333:
 			if ppu.rendering() {
 				// Fetch color bit 0 for next 8 dots
-				ppu.tilesLow = (ppu.tilesLow & 0xff00) | uint16(ppu.Memory.Fetch(ppu.patternAddress))
+				ppu.tilesLatch = (ppu.tilesLatch & 0xff00) | uint16(ppu.Memory.Fetch(ppu.patternAddress))
 			}
 
 		// High BG tile byte (color bit 1)
@@ -872,7 +876,7 @@ func (ppu *RP2C02) renderVisibleScanline(ticks uint64) (cycles uint64) {
 		case 335:
 			if ppu.rendering() {
 				// Fetch color bit 1 for next 8 dots
-				ppu.tilesHigh = (ppu.tilesHigh & 0xff00) | uint16(ppu.Memory.Fetch(ppu.patternAddress|0x0008))
+				ppu.tilesLatch = (ppu.tilesLatch & 0x00ff) | uint16(ppu.Memory.Fetch(ppu.patternAddress|0x0008))<<8
 			}
 
 		// inc hori(v)
@@ -1042,7 +1046,8 @@ func (ppu *RP2C02) renderVisibleScanline(ticks uint64) (cycles uint64) {
 			ppu.attributes = (ppu.attributes >> 2) | (uint16(ppu.attributeLatch) << 14)
 		}
 
-		ppu.clock.Increment(1 - skipped)
+		// ppu.clock.Increment(1 - skipped)
+		ppu.clock.Await(ticks + cycle - skipped)
 	}
 
 	return
@@ -1059,8 +1064,9 @@ func (ppu *RP2C02) renderScanline() (cycles uint64) {
 	// vertical blanking scanlines (241-260)
 	default:
 		if ppu.scanline == 241 {
-			ppu.clock.Increment(1)
-			cycles--
+			// ppu.clock.Increment(1)
+			// cycles--
+			ppu.clock.Await(ticks + 1)
 
 			ppu.Registers.Status |= uint8(VBlankStarted)
 
@@ -1072,15 +1078,16 @@ func (ppu *RP2C02) renderScanline() (cycles uint64) {
 			}
 		}
 
-		ppu.clock.Increment(cycles)
+		// ppu.clock.Increment(cycles)
 	}
 
+	ppu.clock.Await(ticks + cycles)
 	return
 }
 
-func (ppu *RP2C02) dumpPatternTables() {
-	left := image.NewRGBA(image.Rect(0, 0, 128, 128))
-	right := image.NewRGBA(image.Rect(0, 0, 128, 128))
+func (ppu *RP2C02) dumpPatternTables() (left, right *image.RGBA) {
+	left = image.NewRGBA(image.Rect(0, 0, 128, 128))
+	right = image.NewRGBA(image.Rect(0, 0, 128, 128))
 
 	colors := [4]color.RGBA{
 		color.RGBA{0, 0, 0, 255},
@@ -1119,15 +1126,7 @@ func (ppu *RP2C02) dumpPatternTables() {
 		}
 	}
 
-	// fo, _ := os.Create(fmt.Sprintf("left.jpg"))
-	// w := bufio.NewWriter(fo)
-	// jpeg.Encode(w, left, &jpeg.Options{Quality: 100})
-	// fo.Close()
-
-	// fo, _ = os.Create(fmt.Sprintf("right.jpg"))
-	// w = bufio.NewWriter(fo)
-	// jpeg.Encode(w, right, &jpeg.Options{Quality: 100})
-	// fo.Close()
+	return
 }
 
 func (ppu *RP2C02) Run() {
