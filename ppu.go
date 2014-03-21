@@ -190,32 +190,9 @@ type RP2C02 struct {
 	sprites        [8]Sprite
 }
 
-func NewRP2C02(interrupt func(bool), mirroring Mirroring, output chan []uint8, cycles chan uint16) *RP2C02 {
+func NewRP2C02(interrupt func(bool), output chan []uint8, cycles chan uint16) *RP2C02 {
 	mem := rp2ago3.NewMappedMemory(m65go2.NewBasicMemory(m65go2.DEFAULT_MEMORY_SIZE))
 	mirrors := make(map[uint16]uint16)
-
-	switch mirroring {
-	case Horizontal:
-		// Mirror nametable #1 to #0
-		for i := uint16(0x2400); i <= 0x27ff; i++ {
-			mirrors[i] = i - 0x0400
-		}
-
-		// Mirror nametable #3 to #2
-		for i := uint16(0x2c00); i <= 0x2fff; i++ {
-			mirrors[i] = i - 0x0400
-		}
-	case Vertical:
-		// Mirror nametable #2 to #0
-		for i := uint16(0x2800); i <= 0x2bff; i++ {
-			mirrors[i] = i - 0x0800
-		}
-
-		// Mirror nametable #3 to #1
-		for i := uint16(0x2c00); i <= 0x2fff; i++ {
-			mirrors[i] = i - 0x0800
-		}
-	}
 
 	// Mirrored nametables
 	for i := uint16(0x3000); i <= 0x3eff; i++ {
@@ -554,8 +531,79 @@ func (ppu *RP2C02) incrementAddress() {
 }
 
 func (ppu *RP2C02) reloadBackgroundTiles() {
-	ppu.tilesLow = (ppu.tilesLow & 0xff00) | (ppu.tilesLatch & 0x00ff)
-	ppu.tilesHigh = (ppu.tilesHigh & 0xff00) | ((ppu.tilesLatch >> 8) & 0x00ff)
+	switch ppu.cycle {
+	case 9:
+		fallthrough
+	case 17:
+		fallthrough
+	case 25:
+		fallthrough
+	case 33:
+		fallthrough
+	case 41:
+		fallthrough
+	case 49:
+		fallthrough
+	case 57:
+		fallthrough
+	case 65:
+		fallthrough
+	case 73:
+		fallthrough
+	case 81:
+		fallthrough
+	case 89:
+		fallthrough
+	case 97:
+		fallthrough
+	case 105:
+		fallthrough
+	case 113:
+		fallthrough
+	case 121:
+		fallthrough
+	case 129:
+		fallthrough
+	case 137:
+		fallthrough
+	case 145:
+		fallthrough
+	case 153:
+		fallthrough
+	case 161:
+		fallthrough
+	case 169:
+		fallthrough
+	case 177:
+		fallthrough
+	case 185:
+		fallthrough
+	case 193:
+		fallthrough
+	case 201:
+		fallthrough
+	case 209:
+		fallthrough
+	case 217:
+		fallthrough
+	case 225:
+		fallthrough
+	case 233:
+		fallthrough
+	case 241:
+		fallthrough
+	case 249:
+		fallthrough
+	case 257:
+		fallthrough
+	case 329:
+		fallthrough
+	case 337:
+		if ppu.rendering() {
+			ppu.tilesLow = (ppu.tilesLow & 0xff00) | (ppu.tilesLatch & 0x00ff)
+			ppu.tilesHigh = (ppu.tilesHigh & 0xff00) | ((ppu.tilesLatch >> 8) & 0x00ff)
+		}
+	}
 }
 
 func (ppu *RP2C02) shiftBackgroundTiles() {
@@ -682,7 +730,10 @@ func (ppu *RP2C02) spriteAddress(sprite uint32) (address uint16) {
 	return
 }
 
-func (ppu *RP2C02) priorityMultiplexer(bgIndex, bgAddress, spriteIndex, spriteAddress uint16, spritePriority uint8) (address uint16) {
+func (ppu *RP2C02) priorityMultiplexer(bgAddress, spriteAddress uint16, spritePriority uint8) (address uint16) {
+	bgIndex := bgAddress & 0x0003
+	spriteIndex := spriteAddress & 0x0003
+
 	switch bgIndex {
 	case 0:
 		switch spriteIndex {
@@ -709,6 +760,8 @@ func (ppu *RP2C02) priorityMultiplexer(bgIndex, bgAddress, spriteIndex, spriteAd
 }
 
 func (ppu *RP2C02) renderVisibleScanline() {
+	ppu.reloadBackgroundTiles()
+
 	switch ppu.cycle {
 	// skipped on BG+odd
 	case 0:
@@ -788,11 +841,8 @@ func (ppu *RP2C02) renderVisibleScanline() {
 	case 321:
 		fallthrough
 	case 329:
-		fallthrough
-	case 337:
 		// 000p NNNN NNNN vvvv
 		if ppu.rendering() {
-			ppu.reloadBackgroundTiles()
 			ppu.patternAddress = ppu.controller(BackgroundPatternAddress) |
 				uint16(ppu.fetchName(ppu.Registers.Address))<<4 |
 				ppu.address(FineYScroll)
@@ -1108,7 +1158,6 @@ func (ppu *RP2C02) renderVisibleScanline() {
 	// hori(v) = hori(t)
 	case 257:
 		if ppu.rendering() {
-			ppu.reloadBackgroundTiles()
 			ppu.transferX()
 		}
 
@@ -1217,7 +1266,7 @@ func (ppu *RP2C02) renderVisibleScanline() {
 			ppu.shiftSprites()
 		}
 
-		address = ppu.priorityMultiplexer(bgIndex, bgAddress, spriteIndex, spriteAddress, spritePriority)
+		address = ppu.priorityMultiplexer(bgAddress, spriteAddress, spritePriority)
 
 		if ppu.cycle != 255 && ppu.mask(ShowBackground) && ppu.mask(ShowSprites) &&
 			bgAddress != 0x3f00 && spriteAddress != 0x3f10 && address == spriteAddress && spriteZero {
