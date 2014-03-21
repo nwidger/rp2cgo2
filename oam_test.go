@@ -7,27 +7,27 @@ import (
 func TestDisableReads(t *testing.T) {
 	oam := NewOAM()
 
-	oam.buffer.Store(0, 0xff)
+	oam.Buffer.Store(0, 0xff)
 
-	if oam.buffer.Fetch(0) != 0xff {
+	if oam.Buffer.Fetch(0) != 0xff {
 		t.Error("Memory is not 0xff")
 	}
 
-	oam.buffer.Store(0, 0x00)
+	oam.Buffer.Store(0, 0x00)
 
-	if oam.buffer.Fetch(0) != 0x00 {
+	if oam.Buffer.Fetch(0) != 0x00 {
 		t.Error("Memory is not 0x00")
 	}
 
-	oam.buffer.DisableReads()
+	oam.Buffer.DisableReads()
 
-	if oam.buffer.Fetch(0) != 0xff {
+	if oam.Buffer.Fetch(0) != 0xff {
 		t.Error("Memory is not 0xff")
 	}
 
-	oam.buffer.EnableReads()
+	oam.Buffer.EnableReads()
 
-	if oam.buffer.Fetch(0) != 0x00 {
+	if oam.Buffer.Fetch(0) != 0x00 {
 		t.Error("Memory is not 0x00")
 	}
 }
@@ -35,31 +35,31 @@ func TestDisableReads(t *testing.T) {
 func TestDisableWrites(t *testing.T) {
 	oam := NewOAM()
 
-	oam.buffer.Store(0, 0xff)
+	oam.Buffer.Store(0, 0xff)
 
-	if oam.buffer.Fetch(0) != 0xff {
+	if oam.Buffer.Fetch(0) != 0xff {
 		t.Error("Memory is not 0xff")
 	}
 
-	oam.buffer.Store(0, 0x00)
+	oam.Buffer.Store(0, 0x00)
 
-	if oam.buffer.Fetch(0) != 0x00 {
+	if oam.Buffer.Fetch(0) != 0x00 {
 		t.Error("Memory is not 0x00")
 	}
 
-	oam.buffer.DisableWrites()
+	oam.Buffer.DisableWrites()
 
-	oam.buffer.Store(0, 0xff)
+	oam.Buffer.Store(0, 0xff)
 
-	if oam.buffer.Fetch(0) != 0x00 {
+	if oam.Buffer.Fetch(0) != 0x00 {
 		t.Error("Memory is not 0x00")
 	}
 
-	oam.buffer.EnableWrites()
+	oam.Buffer.EnableWrites()
 
-	oam.buffer.Store(0, 0xff)
+	oam.Buffer.Store(0, 0xff)
 
-	if oam.buffer.Fetch(0) != 0xff {
+	if oam.Buffer.Fetch(0) != 0xff {
 		t.Error("Memory is not 0xff")
 	}
 }
@@ -72,7 +72,7 @@ func TestClearOAMBuffer(t *testing.T) {
 	}
 
 	for i := uint16(0); i < 32; i++ {
-		oam.buffer.Store(i, 0x00)
+		oam.Buffer.Store(i, 0x00)
 	}
 
 	scanline := uint16(0)
@@ -87,7 +87,7 @@ func TestClearOAMBuffer(t *testing.T) {
 	expected := uint8(0xff)
 
 	for i := uint16(0); i < 32; i++ {
-		actual = oam.buffer.Fetch(i)
+		actual = oam.Buffer.Fetch(i)
 
 		if actual != expected {
 			t.Errorf("Memory is %02X not %02X\n", actual, expected)
@@ -125,7 +125,7 @@ func TestSpriteEvaluation1(t *testing.T) {
 	}
 
 	for i := uint16(0); i < 32; i++ {
-		oam.buffer.Store(i, 0xff)
+		oam.Buffer.Store(i, 0xff)
 	}
 
 	for i, e := range buf {
@@ -151,7 +151,7 @@ func TestSpriteEvaluation1(t *testing.T) {
 	}
 
 	for i, e := range buf {
-		if oam.buffer.Fetch(uint16(i)) != e {
+		if oam.Buffer.Fetch(uint16(i)) != e {
 			t.Errorf("Memory is not %02X", e)
 		}
 	}
@@ -187,7 +187,7 @@ func TestSpriteEvaluation2(t *testing.T) {
 	}
 
 	for i := uint16(0); i < 32; i++ {
-		oam.buffer.Store(i, 0xff)
+		oam.Buffer.Store(i, 0xff)
 	}
 
 	for i, e := range buf {
@@ -213,7 +213,7 @@ func TestSpriteEvaluation2(t *testing.T) {
 	}
 
 	for i, e := range buf {
-		if oam.buffer.Fetch(uint16(i)) != e {
+		if oam.Buffer.Fetch(uint16(i)) != e {
 			t.Errorf("Memory is not %02X", e)
 		}
 	}
@@ -249,7 +249,7 @@ func TestSpriteEvaluation3(t *testing.T) {
 	}
 
 	for i := uint16(0); i < 32; i++ {
-		oam.buffer.Store(i, 0xff)
+		oam.Buffer.Store(i, 0xff)
 	}
 
 	for i, e := range buf {
@@ -275,7 +275,7 @@ func TestSpriteEvaluation3(t *testing.T) {
 	}
 
 	for i, e := range buf {
-		if oam.buffer.Fetch(uint16(i)) != e {
+		if oam.Buffer.Fetch(uint16(i)) != e {
 			t.Errorf("Memory is not %02X", e)
 		}
 	}
@@ -331,7 +331,7 @@ func TestSpriteEvaluation4(t *testing.T) {
 	}
 
 	for i := uint16(0); i < 32; i++ {
-		oam.buffer.Store(i, 0xff)
+		oam.Buffer.Store(i, 0xff)
 	}
 
 	for i, e := range buf {
@@ -357,7 +357,7 @@ func TestSpriteEvaluation4(t *testing.T) {
 	}
 
 	for i, e := range buf {
-		if oam.buffer.Fetch(uint16(i)) != e {
+		if oam.Buffer.Fetch(uint16(i)) != e {
 			t.Errorf("Memory is not %02X", e)
 		}
 	}
@@ -398,7 +398,7 @@ func TestSpriteOverflowClear(t *testing.T) {
 	}
 
 	for i := uint16(0); i < 32; i++ {
-		oam.buffer.Store(i, 0xff)
+		oam.Buffer.Store(i, 0xff)
 	}
 
 	for i, e := range buf {
@@ -451,7 +451,7 @@ func TestSpriteOverflowSet1(t *testing.T) {
 	}
 
 	for i := uint16(0); i < 32; i++ {
-		oam.buffer.Store(i, 0xff)
+		oam.Buffer.Store(i, 0xff)
 	}
 
 	for i, e := range buf {
@@ -505,7 +505,7 @@ func TestSpriteOverflowSet2(t *testing.T) {
 	}
 
 	for i := uint16(0); i < 32; i++ {
-		oam.buffer.Store(i, 0xff)
+		oam.Buffer.Store(i, 0xff)
 	}
 
 	for i, e := range buf {
@@ -531,10 +531,10 @@ func TestOAMSprite(t *testing.T) {
 
 	address = 0x0000
 
-	oam.buffer.Store(address+0, 0x00)
-	oam.buffer.Store(address+1, 0x01)
-	oam.buffer.Store(address+2, 0x02)
-	oam.buffer.Store(address+3, 0x03)
+	oam.Buffer.Store(address+0, 0x00)
+	oam.Buffer.Store(address+1, 0x01)
+	oam.Buffer.Store(address+2, 0x02)
+	oam.Buffer.Store(address+3, 0x03)
 
 	if oam.Sprite(0) != 0x00010203 {
 		t.Error("Sprite is not 0x00010203")
@@ -542,10 +542,10 @@ func TestOAMSprite(t *testing.T) {
 
 	address = 0x0004
 
-	oam.buffer.Store(address+0, 0x04)
-	oam.buffer.Store(address+1, 0x05)
-	oam.buffer.Store(address+2, 0x06)
-	oam.buffer.Store(address+3, 0x07)
+	oam.Buffer.Store(address+0, 0x04)
+	oam.Buffer.Store(address+1, 0x05)
+	oam.Buffer.Store(address+2, 0x06)
+	oam.Buffer.Store(address+3, 0x07)
 
 	if oam.Sprite(1) != 0x04050607 {
 		t.Error("Sprite is not 0x04050607")
@@ -553,10 +553,10 @@ func TestOAMSprite(t *testing.T) {
 
 	address = 0x001c
 
-	oam.buffer.Store(address+0, 0xfc)
-	oam.buffer.Store(address+1, 0xfd)
-	oam.buffer.Store(address+2, 0xfe)
-	oam.buffer.Store(address+3, 0xff)
+	oam.Buffer.Store(address+0, 0xfc)
+	oam.Buffer.Store(address+1, 0xfd)
+	oam.Buffer.Store(address+2, 0xfe)
+	oam.Buffer.Store(address+3, 0xff)
 
 	if oam.Sprite(7) != 0xfcfdfeff {
 		t.Error("Sprite is not 0xfcfdfeff")

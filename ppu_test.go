@@ -260,17 +260,17 @@ func TestSprite(t *testing.T) {
 		t.Error("TileBank is not 0x01")
 	}
 
-	// TopTile
+	// TileNumber
 	sprite = 0x00000000
 
-	if ppu.sprite(sprite, TopTile) != 0x00 {
-		t.Error("TopTile is not 0x00")
+	if ppu.sprite(sprite, TileNumber) != 0x00 {
+		t.Error("TileNumber is not 0x00")
 	}
 
 	sprite = 0xffffffff
 
-	if ppu.sprite(sprite, TopTile) != 0x7f {
-		t.Error("TopTile is not 0x7f")
+	if ppu.sprite(sprite, TileNumber) != 0xff {
+		t.Error("TileNumber is not 0xff")
 	}
 
 	// SpritePalette
