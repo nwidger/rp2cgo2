@@ -8,8 +8,8 @@ type OAM struct {
 	latch      uint8
 	Buffer     *m65go2.BasicMemory
 	index      uint16
-	readCycle  func(oam *OAM, scanline uint16, cycle uint64, size uint16)
-	writeCycle func(oam *OAM, scanline uint16, cycle uint64, size uint16) (spriteOverflow bool)
+	readCycle  func(oam *OAM, scanline uint16, cycle uint16, size uint16)
+	writeCycle func(oam *OAM, scanline uint16, cycle uint16, size uint16) (spriteOverflow bool)
 }
 
 func NewOAM() *OAM {
@@ -30,7 +30,7 @@ func (oam *OAM) Sprite(index uint8) uint32 {
 		uint32(oam.Buffer.Fetch(address+3)))
 }
 
-func (oam *OAM) SpriteEvaluation(scanline uint16, cycle uint64, size uint16) (spriteOverflow bool) {
+func (oam *OAM) SpriteEvaluation(scanline uint16, cycle uint16, size uint16) (spriteOverflow bool) {
 	if (scanline >= 0 && scanline <= 239) && (cycle >= 1 && cycle <= 256) {
 		switch cycle {
 		case 1:
@@ -65,20 +65,20 @@ func (oam *OAM) SpriteEvaluation(scanline uint16, cycle uint64, size uint16) (sp
 	return
 }
 
-func fetchAddress(oam *OAM, scanline uint16, cycle uint64, size uint16) {
+func fetchAddress(oam *OAM, scanline uint16, cycle uint16, size uint16) {
 	if oam.address < 0x0100 {
 		oam.latch = oam.Fetch(oam.address)
 	}
 }
 
-func clearBuffer(oam *OAM, scanline uint16, cycle uint64, size uint16) (spriteOverflow bool) {
+func clearBuffer(oam *OAM, scanline uint16, cycle uint16, size uint16) (spriteOverflow bool) {
 	oam.Buffer.Store(oam.address, oam.latch)
 	oam.address++
 
 	return
 }
 
-func copyYPosition(oam *OAM, scanline uint16, cycle uint64, size uint16) (spriteOverflow bool) {
+func copyYPosition(oam *OAM, scanline uint16, cycle uint16, size uint16) (spriteOverflow bool) {
 	if scanline-uint16(oam.latch) < size {
 		oam.Buffer.Store(oam.index+0, oam.latch)
 		oam.writeCycle = copyIndex
@@ -94,21 +94,21 @@ func copyYPosition(oam *OAM, scanline uint16, cycle uint64, size uint16) (sprite
 	return
 }
 
-func copyIndex(oam *OAM, scanline uint16, cycle uint64, size uint16) (spriteOverflow bool) {
+func copyIndex(oam *OAM, scanline uint16, cycle uint16, size uint16) (spriteOverflow bool) {
 	oam.Buffer.Store(oam.index+1, oam.latch)
 	oam.writeCycle = copyAttributes
 	oam.address++
 	return
 }
 
-func copyAttributes(oam *OAM, scanline uint16, cycle uint64, size uint16) (spriteOverflow bool) {
+func copyAttributes(oam *OAM, scanline uint16, cycle uint16, size uint16) (spriteOverflow bool) {
 	oam.Buffer.Store(oam.index+2, oam.latch)
 	oam.writeCycle = copyXPosition
 	oam.address++
 	return
 }
 
-func copyXPosition(oam *OAM, scanline uint16, cycle uint64, size uint16) (spriteOverflow bool) {
+func copyXPosition(oam *OAM, scanline uint16, cycle uint16, size uint16) (spriteOverflow bool) {
 	oam.Buffer.Store(oam.index+3, oam.latch)
 
 	oam.index += 4
@@ -128,7 +128,7 @@ func copyXPosition(oam *OAM, scanline uint16, cycle uint64, size uint16) (sprite
 	return
 }
 
-func evaluateYPosition(oam *OAM, scanline uint16, cycle uint64, size uint16) (spriteOverflow bool) {
+func evaluateYPosition(oam *OAM, scanline uint16, cycle uint16, size uint16) (spriteOverflow bool) {
 	if scanline-uint16(uint32(oam.latch)) < size {
 		spriteOverflow = true
 		oam.address = (oam.address + 1) & 0x00ff
@@ -145,19 +145,19 @@ func evaluateYPosition(oam *OAM, scanline uint16, cycle uint64, size uint16) (sp
 	return
 }
 
-func evaluateIndex(oam *OAM, scanline uint16, cycle uint64, size uint16) (spriteOverflow bool) {
+func evaluateIndex(oam *OAM, scanline uint16, cycle uint16, size uint16) (spriteOverflow bool) {
 	oam.address = (oam.address + 1) & 0x00ff
 	oam.writeCycle = evaluateAttributes
 	return
 }
 
-func evaluateAttributes(oam *OAM, scanline uint16, cycle uint64, size uint16) (spriteOverflow bool) {
+func evaluateAttributes(oam *OAM, scanline uint16, cycle uint16, size uint16) (spriteOverflow bool) {
 	oam.address = (oam.address + 1) & 0x00ff
 	oam.writeCycle = evaluateXPosition
 	return
 }
 
-func evaluateXPosition(oam *OAM, scanline uint16, cycle uint64, size uint16) (spriteOverflow bool) {
+func evaluateXPosition(oam *OAM, scanline uint16, cycle uint16, size uint16) (spriteOverflow bool) {
 	oam.address = (oam.address + 1) & 0x00ff
 
 	if (oam.address & 0x0003) == 0x0003 {
@@ -170,7 +170,7 @@ func evaluateXPosition(oam *OAM, scanline uint16, cycle uint64, size uint16) (sp
 	return
 }
 
-func failCopyYPosition(oam *OAM, scanline uint16, cycle uint64, size uint16) (spriteOverflow bool) {
+func failCopyYPosition(oam *OAM, scanline uint16, cycle uint16, size uint16) (spriteOverflow bool) {
 	oam.address = (oam.address + 4) & 0x00ff
 
 	return

@@ -155,7 +155,7 @@ func (reg *Registers) Reset() {
 }
 
 const (
-	CYCLES_PER_SCANLINE uint64 = 341
+	CYCLES_PER_SCANLINE uint16 = 341
 	NUM_SCANLINES              = 262
 	POWERUP_SCANLINE    uint16 = 241
 )
@@ -170,15 +170,15 @@ type Sprite struct {
 type RP2C02 struct {
 	latch          bool
 	latchAddress   uint16
-	output         chan []uint8
+	Output         chan []uint8
 	colors         []uint8
 	Registers      Registers
 	Memory         *rp2ago3.MappedMemory
 	Interrupt      func(state bool)
 	oam            *OAM
-	frame          uint64
+	frame          uint16
 	scanline       uint16
-	cycle          uint64
+	cycle          uint16
 	patternAddress uint16
 	attributeLatch uint8
 	attributes     uint16
@@ -190,7 +190,7 @@ type RP2C02 struct {
 	sprites        [8]Sprite
 }
 
-func NewRP2C02(interrupt func(bool), output chan []uint8, cycles chan uint16) *RP2C02 {
+func NewRP2C02(interrupt func(bool)) *RP2C02 {
 	mem := rp2ago3.NewMappedMemory(m65go2.NewBasicMemory(m65go2.DEFAULT_MEMORY_SIZE))
 	mirrors := make(map[uint16]uint16)
 
@@ -211,11 +211,11 @@ func NewRP2C02(interrupt func(bool), output chan []uint8, cycles chan uint16) *R
 	mem.AddMirrors(mirrors)
 
 	return &RP2C02{
-		output:    output,
+		Output:    make(chan []uint8),
 		Memory:    mem,
 		Interrupt: interrupt,
 		oam:       NewOAM(),
-		Cycles:    cycles,
+		Cycles:    make(chan uint16),
 	}
 }
 
@@ -1377,7 +1377,7 @@ func (ppu *RP2C02) dumpPatternTables() (left, right *image.RGBA) {
 }
 
 func (ppu *RP2C02) Run() {
-	ppu.dumpPatternTables()
+	// ppu.dumpPatternTables()
 
 	for {
 		ppu.colors = []uint8{}
@@ -1389,8 +1389,8 @@ func (ppu *RP2C02) Run() {
 		}
 
 		if ppu.rendering() {
-			ppu.output <- ppu.colors
-			<-ppu.output
+			ppu.Output <- ppu.colors
+			<-ppu.Output
 		}
 
 		ppu.scanline = 0

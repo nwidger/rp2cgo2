@@ -3,7 +3,7 @@ package rp2cgo2
 import "testing"
 
 func TestController(t *testing.T) {
-	ppu := NewRP2C02(nil, Vertical, nil, nil)
+	ppu := NewRP2C02(nil)
 
 	ppu.Registers.Controller = 0x00
 	ppu.Store(0x2000, 0xff)
@@ -104,7 +104,7 @@ func TestController(t *testing.T) {
 }
 
 func TestMask(t *testing.T) {
-	ppu := NewRP2C02(nil, Vertical, nil, nil)
+	ppu := NewRP2C02(nil)
 
 	ppu.Registers.Mask = 0x00
 	value := uint8(0xff)
@@ -127,7 +127,7 @@ func TestMask(t *testing.T) {
 }
 
 func TestStatus(t *testing.T) {
-	ppu := NewRP2C02(nil, Vertical, nil, nil)
+	ppu := NewRP2C02(nil)
 
 	ppu.Registers.Status = 0x00
 	value := uint8(0xff)
@@ -166,7 +166,7 @@ func TestStatus(t *testing.T) {
 }
 
 func TestAddress(t *testing.T) {
-	ppu := NewRP2C02(nil, Vertical, nil, nil)
+	ppu := NewRP2C02(nil)
 
 	ppu.Registers.Address = 0x00
 	ppu.Store(0x2006, 0xff)
@@ -230,7 +230,7 @@ func TestAddress(t *testing.T) {
 }
 
 func TestSprite(t *testing.T) {
-	ppu := NewRP2C02(nil, Vertical, nil, nil)
+	ppu := NewRP2C02(nil)
 
 	sprite := uint32(0)
 
@@ -340,7 +340,7 @@ func TestSprite(t *testing.T) {
 }
 
 func TestOAMAddress(t *testing.T) {
-	ppu := NewRP2C02(nil, Vertical, nil, nil)
+	ppu := NewRP2C02(nil)
 
 	ppu.Registers.OAMAddress = 0x00
 
@@ -352,7 +352,7 @@ func TestOAMAddress(t *testing.T) {
 }
 
 func TestOAMData(t *testing.T) {
-	ppu := NewRP2C02(nil, Vertical, nil, nil)
+	ppu := NewRP2C02(nil)
 
 	ppu.Registers.OAMAddress = 0x00
 
@@ -367,144 +367,8 @@ func TestOAMData(t *testing.T) {
 	}
 }
 
-func TestVerticalMirroring(t *testing.T) {
-	ppu := NewRP2C02(nil, Vertical, nil, nil)
-
-	// Mirror nametable #2 to #0
-	for i := uint16(0x2800); i <= 0x2bff; i++ {
-		ppu.Memory.Store(i-0x0800, 0xff)
-
-		if ppu.Memory.Fetch(i) != 0xff {
-			t.Error("Memory is not 0xff")
-		}
-
-		ppu.Memory.Store(i-0x0800, 0x00)
-		ppu.Memory.Store(i, 0xff)
-
-		if ppu.Memory.Fetch(i-0x0800) != 0xff {
-			t.Error("Memory is not 0xff")
-		}
-	}
-
-	// Mirror nametable #3 to #1
-	for i := uint16(0x2c00); i <= 0x2fff; i++ {
-		ppu.Memory.Store(i-0x0800, 0xff)
-
-		if ppu.Memory.Fetch(i) != 0xff {
-			t.Error("Memory is not 0xff")
-		}
-
-		ppu.Memory.Store(i-0x0800, 0x00)
-		ppu.Memory.Store(i, 0xff)
-
-		if ppu.Memory.Fetch(i-0x0800) != 0xff {
-			t.Error("Memory is not 0xff")
-		}
-	}
-
-	// Mirror nametable #2 to #0
-	for i := uint16(0x3000); i <= 0x33ff; i++ {
-		ppu.Memory.Store(i-0x1000, 0xff)
-
-		if ppu.Memory.Fetch(i) != 0xff {
-			t.Error("Memory is not 0xff")
-		}
-
-		ppu.Memory.Store(i-0x1000, 0x00)
-		ppu.Memory.Store(i, 0xff)
-
-		if ppu.Memory.Fetch(i-0x1000) != 0xff {
-			t.Error("Memory is not 0xff")
-		}
-	}
-
-	// Mirror nametable #3 to #1
-	for i := uint16(0x3400); i <= 0x37ff; i++ {
-		ppu.Memory.Store(i-0x1000, 0xff)
-
-		if ppu.Memory.Fetch(i) != 0xff {
-			t.Error("Memory is not 0xff")
-		}
-
-		ppu.Memory.Store(i-0x1000, 0x00)
-		ppu.Memory.Store(i, 0xff)
-
-		if ppu.Memory.Fetch(i-0x1000) != 0xff {
-			t.Error("Memory is not 0xff")
-		}
-	}
-}
-
-func TestHorizontalMirroring(t *testing.T) {
-	ppu := NewRP2C02(nil, Horizontal, nil, nil)
-
-	// Mirror nametable #1 to #0
-	for i := uint16(0x2400); i <= 0x27ff; i++ {
-		ppu.Memory.Store(i-0x0400, 0xff)
-
-		if ppu.Memory.Fetch(i) != 0xff {
-			t.Error("Memory is not 0xff")
-		}
-
-		ppu.Memory.Store(i-0x0400, 0x00)
-		ppu.Memory.Store(i, 0xff)
-
-		if ppu.Memory.Fetch(i-0x0400) != 0xff {
-			t.Error("Memory is not 0xff")
-		}
-	}
-
-	// Mirror nametable #3 to #2
-	for i := uint16(0x2c00); i <= 0x2fff; i++ {
-		ppu.Memory.Store(i-0x0400, 0xff)
-
-		if ppu.Memory.Fetch(i) != 0xff {
-			t.Error("Memory is not 0xff")
-		}
-
-		ppu.Memory.Store(i-0x0400, 0x00)
-		ppu.Memory.Store(i, 0xff)
-
-		if ppu.Memory.Fetch(i-0x0400) != 0xff {
-			t.Error("Memory is not 0xff")
-		}
-	}
-
-	// Mirror nametable #1 to #0
-	for i := uint16(0x3400); i <= 0x37ff; i++ {
-		ppu.Memory.Store(i-0x1400, 0xff)
-
-		if ppu.Memory.Fetch(i) != 0xff {
-			t.Error("Memory is not 0xff")
-		}
-
-		ppu.Memory.Store(i-0x1400, 0x00)
-		ppu.Memory.Store(i, 0xff)
-
-		if ppu.Memory.Fetch(i-0x1400) != 0xff {
-			t.Error("Memory is not 0xff")
-		}
-	}
-
-	// Mirror nametable #3 to #2
-	for i := uint16(0x3c00); i <= 0x3eff; i++ {
-		ppu.Memory.Store(i-0x1400, 0xff)
-
-		if ppu.Memory.Fetch(i) != 0xff {
-			t.Error("Memory is not 0xff")
-		}
-
-		ppu.Memory.Store(i-0x1400, 0x00)
-		ppu.Memory.Store(i, 0xff)
-
-		if ppu.Memory.Fetch(i-0x1400) != 0xff {
-			t.Error("Memory is not 0xff")
-		}
-	}
-}
-
 func TestPaletteMirroring(t *testing.T) {
-	ppu := NewRP2C02(nil, Horizontal, nil, nil)
+	ppu := NewRP2C02(nil)
 
 	// Mirrored palette
 	for _, i := range []uint16{0x3f10, 0x3f14, 0x3f18, 0x3f1c} {
@@ -539,7 +403,7 @@ func TestPaletteMirroring(t *testing.T) {
 }
 
 func TestAddressFetchStore(t *testing.T) {
-	ppu := NewRP2C02(nil, Horizontal, nil, nil)
+	ppu := NewRP2C02(nil)
 
 	ppu.Registers.Address = 0x0000
 	ppu.Fetch(0x2002)
@@ -562,7 +426,7 @@ func TestAddressFetchStore(t *testing.T) {
 }
 
 func TestDataIncrement1(t *testing.T) {
-	ppu := NewRP2C02(nil, Horizontal, nil, nil)
+	ppu := NewRP2C02(nil)
 
 	ppu.Registers.Address = 0x0000
 	ppu.Fetch(0x2002)
@@ -629,7 +493,7 @@ func TestDataIncrement1(t *testing.T) {
 }
 
 func TestDataIncrement32(t *testing.T) {
-	ppu := NewRP2C02(nil, Horizontal, nil, nil)
+	ppu := NewRP2C02(nil)
 
 	ppu.Store(0x2000, 0x04)
 
@@ -661,7 +525,7 @@ func TestDataIncrement32(t *testing.T) {
 }
 
 func TestIncrementX(t *testing.T) {
-	ppu := NewRP2C02(nil, Horizontal, nil, nil)
+	ppu := NewRP2C02(nil)
 
 	ppu.Registers.Address = 0x0000
 	ppu.incrementX()
@@ -693,7 +557,7 @@ func TestIncrementX(t *testing.T) {
 }
 
 func TestTransferX(t *testing.T) {
-	ppu := NewRP2C02(nil, Horizontal, nil, nil)
+	ppu := NewRP2C02(nil)
 
 	ppu.Registers.Address = 0x7be0
 	ppu.latchAddress = 0x041f
@@ -733,7 +597,7 @@ func TestTransferX(t *testing.T) {
 }
 
 func TestIncrementY(t *testing.T) {
-	ppu := NewRP2C02(nil, Horizontal, nil, nil)
+	ppu := NewRP2C02(nil)
 
 	ppu.Registers.Address = 0x0000
 	ppu.incrementY()
@@ -793,7 +657,7 @@ func TestIncrementY(t *testing.T) {
 }
 
 func TestTransferY(t *testing.T) {
-	ppu := NewRP2C02(nil, Horizontal, nil, nil)
+	ppu := NewRP2C02(nil)
 
 	ppu.Registers.Address = 0x041f
 	ppu.latchAddress = 0x7be0
@@ -830,8 +694,4 @@ func TestTransferY(t *testing.T) {
 	if ppu.Registers.Address != 0x7be0 {
 		t.Error("Registers is not 0x7be0")
 	}
-}
-
-func TestFetchName(t *testing.T) {
-
 }
