@@ -157,7 +157,7 @@ func (reg *Registers) Reset() {
 const (
 	CYCLES_PER_SCANLINE uint16 = 341
 	NUM_SCANLINES              = 262
-	POWERUP_SCANLINE    uint16 = 241
+	POWERUP_SCANLINE           = 241
 )
 
 type Sprite struct {
@@ -410,7 +410,7 @@ func (ppu *RP2C02) Store(address uint16, value uint8) (oldValue uint8) {
 		// t: ...BA.. ........ = d: ......BA
 		oldValue = ppu.Registers.Controller
 		ppu.Registers.Controller = value
-		ppu.latchAddress = (ppu.latchAddress & 0x73ff) | uint16(ppu.controller(BaseNametableAddress))<<10
+		ppu.latchAddress = (ppu.latchAddress & 0x73ff) | uint16(value&0x03)<<10
 	// Mask
 	case 0x2001:
 		oldValue = ppu.Registers.Mask
@@ -444,7 +444,7 @@ func (ppu *RP2C02) Store(address uint16, value uint8) (oldValue uint8) {
 		if !ppu.latch {
 			// t: .FEDCBA ........ = d: ..FEDCBA
 			// t: X...... ........ = 0
-			ppu.latchAddress = (ppu.latchAddress & 0x00ff) | uint16(value&0x3f)<<8
+			ppu.latchAddress = (ppu.latchAddress & 0x00ff) | (uint16(value&0x3f) << 8)
 		} else {
 			// t: ....... HGFEDCBA = d: HGFEDCBA
 			// v                   = t
@@ -607,9 +607,11 @@ func (ppu *RP2C02) reloadBackgroundTiles() {
 }
 
 func (ppu *RP2C02) shiftBackgroundTiles() {
-	ppu.tilesLow <<= 1
-	ppu.tilesHigh <<= 1
-	ppu.attributes = (ppu.attributes >> 2) | (uint16(ppu.attributeLatch) << 14)
+	if (ppu.cycle >= 2 && ppu.cycle <= 257) || (ppu.cycle >= 322 && ppu.cycle <= 337) {
+		ppu.tilesLow <<= 1
+		ppu.tilesHigh <<= 1
+		ppu.attributes = (ppu.attributes >> 2) | (uint16(ppu.attributeLatch) << 14)
+	}
 }
 
 func (ppu *RP2C02) loadSprites() {
@@ -1152,6 +1154,7 @@ func (ppu *RP2C02) renderVisibleScanline() {
 	// inc vert(v)
 	case 256:
 		if ppu.rendering() {
+			ppu.incrementX()
 			ppu.incrementY()
 		}
 
@@ -1284,13 +1287,8 @@ func (ppu *RP2C02) renderVisibleScanline() {
 		}
 	}
 
-	if (ppu.cycle >= 2 && ppu.cycle <= 257) || (ppu.cycle >= 322 && ppu.cycle <= 337) {
-		ppu.shiftBackgroundTiles()
-	}
-
-	if ppu.cycle >= 257 && ppu.cycle <= 320 {
-		ppu.loadSprites()
-	}
+	ppu.shiftBackgroundTiles()
+	ppu.loadSprites()
 
 	return
 }
